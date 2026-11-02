@@ -7,7 +7,7 @@ name: Jasper Yes
 # pull_request_target runs this file from the base branch, so a PR can't rewrite
 # its own gate. This token can write: never check out or run PR code here.
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, reopened, synchronize, labeled, unlabeled]
 
 permissions:
