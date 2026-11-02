@@ -54,6 +54,9 @@ npm run prove                                             # in another; BASE_URL
 
 `scripts/prove-e2e.ts` starts a mock Canvas site and goes from a token through courses and syllabus files to an `.ics`, checking that a bad token is refused, that the token never appears in a response, and that it doesn't follow a file redirect to another origin. It then uploads the three sample PDFs to `/api/pdf-text`, parses them, checks key dates and builds the `.ics`. Output goes to `.e2e-out/`.
 
+Screenshot proof: against the same server, `npx playwright install chromium` (once), then `npm run prove:ui`.
+It drives the real UI through the mock Canvas site with no LLM key, checks each step, and saves `01-input.png` and on to `.e2e-out/ui/`.
+
 ## Deploy to Vercel
 
 1. Import the repository in Vercel.
@@ -121,7 +124,7 @@ src/lib/                Pure logic, unit tested
   store.ts              Browser store, saving through localStorage
 src/components/         The steps, including Coach and study mode
 src/app/api/            pdf-text, llm-status, extract-llm, coach-quiz, canvas/courses, canvas/syllabus
-scripts/                prove-e2e.ts, mock-canvas.ts, check-fixtures.ts
+scripts/                prove-e2e.ts, prove-ui.ts, mock-canvas.ts, check-fixtures.ts
 ```
 
 Canvas calls go through the server because Canvas doesn't allow API calls with a token from other sites' pages.
@@ -149,4 +152,4 @@ There's no auth in v0. All persistence goes through the `StateRepository` interf
 - **Input formats:** no Word files, screenshots or OCR. Scanned PDFs get a message asking the student to paste the text.
 - **Upload size:** PDFs are limited to 4 MB, because Vercel functions reject bodies over 4.5 MB. Reading PDFs in the browser would remove the limit.
 - **LLM extraction:** tested against a local mock of the API, but not yet against the real API, so its extraction quality is unmeasured. It has no evals, no auth and no rate limiting.
-- **Other:** no sync between devices, and no re-import of an existing `deadlines.md`. No rate limiting on the Canvas routes. Tests cover `src/lib` only; the UI was checked by hand with a throwaway headless Chrome script that isn't in the repo.
+- **Other:** no sync between devices, and no re-import of an existing `deadlines.md`. No rate limiting on the Canvas routes. Unit tests cover `src/lib` only; `npm run prove:ui` walks the UI's main path, but CI doesn't run it.
