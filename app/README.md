@@ -1,6 +1,6 @@
 # Semester Autopilot web app (v0)
 
-Connect Quercus or any Canvas site with an access token, pick your courses and check one table of every test and deadline. Then check a short study plan per course and a combined weekly schedule, and take it all with you as markdown, an `.ics` file or the clipboard. Uploading or pasting a syllabus still works if you'd rather not use a token. This is Steps 1 to 4 of the [Semester Autopilot skill](../SKILL.md) as a web app, minus calendar events for study blocks, and it follows the skill's rules: nothing is filled in silently, and nothing counts until you confirm it.
+Connect Quercus or any Canvas site with an access token, pick your courses and check one table of every test and deadline. Then check a short study plan per course and a combined weekly schedule, and take it all with you as markdown, an `.ics` file or the clipboard. Uploading or pasting a syllabus still works if you'd rather not use a token. This is Steps 1 to 4 of the [Semester Autopilot skill](../SKILL.md) as a web app, minus calendar events for study blocks, and it follows the skill's rules: nothing is filled in silently, and nothing counts until you confirm it. Then **Coach** shows what's on today, quizzes you on it and tracks what's done.
 
 No Anthropic API key, database or sign-in is needed, for either path.
 
@@ -66,10 +66,10 @@ This has been run locally with `next build` and `next start`, but not yet on Ver
 
 | Name | Required | What it does |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | No | Adds a **Read with Claude instead** button, which uses `/api/extract-llm` with `claude-opus-5-5` and server-side refusal fallbacks. Everything else, including the Quercus and Canvas path, works without it. |
+| `ANTHROPIC_API_KEY` | No | Adds a **Read with Claude instead** button, which uses `/api/extract-llm`, and a **Get questions from Claude** button in Coach, which uses `/api/coach-quiz`. Both use `claude-opus-5-5` and server-side refusal fallbacks. Everything else, including the Quercus and Canvas path and Coach's built-in questions, works without it. |
 | `CANVAS_ALLOW_PRIVATE_HOSTS` | No | Local testing only, and ignored on Vercel. `1` lets the app reach `http://` and private addresses, for the mock Canvas site. |
 
-**Before setting the key on a public site:** there's no auth or rate limiting in v0, so anyone who can open the site can spend it. The route only refuses other sites' pages and input over 100,000 characters. Keep the key off public deployments until auth or rate limiting exists. Using this button also sends the syllabus text to the Anthropic API, and the UI says so.
+**Before setting the key on a public site:** there's no auth or rate limiting in v0, so anyone who can open the site can spend it. The route only refuses other sites' pages and input over 100,000 characters. Keep the key off public deployments until auth or rate limiting exists. Using the extraction button also sends the syllabus text to the Anthropic API, and Coach's button sends the topic names and matching syllabus lines. The UI says so for both. For now both use the deployment's key. Once there are accounts, Coach is meant to use each student's own key or plan, and `/api/coach-quiz` is the one place that changes.
 
 ## What works
 
@@ -84,7 +84,13 @@ This has been run locally with `next build` and `next start`, but not yet on Ver
 - **Weekly schedule:** hours per course per day, deadlines as fixed events, overloaded days and what to cut first, one table per week. It's always worked out from the plans, so your edits show up in it.
 - **After confirming:** the confirmed table and "What you confirmed", plus Download `deadlines.md`, Download `.ics`, Copy (markdown or plain text), one Download per course plan (`BIO110-midterm-study-plan.md`) and Download `weekly-schedule.md`.
 - **Calendar file:** one event per dated deadline, with `TZID` and a `VTIMEZONE` built from the zone's real offset changes. It's all-day when there's no time. A due time becomes a 30-minute block ending at the deadline, and a test with only a start time gets a 1-hour block. `TBA` and "December" rows are left out, and the app lists them.
-- **Saving:** state is kept in `localStorage` and survives a reload.
+- **Coach, today:** after you confirm plans, **What's today?** lists today's blocks from your plans and any fixed events from the weekly schedule. Mark each block done or not done, and click again to clear it. Unfinished blocks from the past week stay listed while their test is still ahead, and the app reopens here once you've been in Coach.
+- **Coach, this week:** a Monday-to-Sunday board of done and left, in blocks and hours, plus done and left per plan. Reminders with no minutes, such as what to bring, aren't counted.
+- **Study mode:** open a block for a few short steps, your materials and a quiz of up to 5 questions, free recall first, then multiple choice, with the answer shown after each attempt. Type or use **Speak**, or say you did it on paper or out loud. **Read it to me** reads a question aloud. Both use the browser's speech features and hide if it has none.
+- **Built-in questions:** without a key these are templates that name your topics and send you to your own notes to check, because nothing here invents course content. You mark yourself. Multiple choice only appears when the syllabus names enough topics to ask which unit is which. Problem courses work on paper, shuffled across topics.
+- **Progression:** each topic goes `new → learning → reviewing → secure`, as in [`docs/study-methods.md`](../docs/study-methods.md): 3 correct recalls in one session, then correct recall on 2 later days. A miss brings it back the next day and restarts the later days, and a right answer grows the gap, capped at the day before the test. A right multiple-choice answer earns nothing, because recognizing isn't recalling. Due topics appear under **Back for review**.
+- **Materials:** study mode lists the course's syllabuses and files already in this browser, with the lines that mention the block's topics and a link to the course site for Canvas imports. It doesn't fetch anything new.
+- **Saving:** state is kept in `localStorage` and survives a reload, including what's done and each topic's progress. Rebuilding plans or importing again keeps topic progress and work already done.
 
 ## How it's built
 
@@ -99,6 +105,9 @@ src/lib/                Pure logic, unit tested
   planner.ts            Deterministic study plans from the confirmed deadlines, and editing them
   topics.ts             The Covers cell and syllabus topic lists, turned into topics
   schedule.ts           The weekly schedule, derived from the plans
+  coach.ts              Today, the week's board, topic progression and materials
+  quiz.ts               Built-in quiz questions
+  quiz-llm.ts           Optional Claude questions: schema, prompt and conversion
   markdown.ts, ics.ts   Exports
   canvas.ts             Canvas client: courses, finding and reading syllabuses. Network passed in
   canvas-http.ts        The server's only way to reach a course site, with the SSRF and token rules
@@ -110,8 +119,8 @@ src/lib/                Pure logic, unit tested
   pdf.ts                PDF text extraction
   state.ts              App state, its transitions, and the StateRepository interface
   store.ts              Browser store, saving through localStorage
-src/components/         The four steps
-src/app/api/            pdf-text, llm-status, extract-llm, canvas/courses, canvas/syllabus
+src/components/         The steps, including Coach and study mode
+src/app/api/            pdf-text, llm-status, extract-llm, coach-quiz, canvas/courses, canvas/syllabus
 scripts/                prove-e2e.ts, mock-canvas.ts
 ```
 
@@ -122,7 +131,7 @@ Canvas calls go through the server because Canvas doesn't allow API calls with a
 - It never asks for or stores course site passwords. There's no OAuth: the student makes a personal access token, which can do anything their account can, so the UI says to set an expiry and delete it afterward.
 - The token is kept in that tab's `sessionStorage`, never in the saved app state. **Forget token** and **Start over** clear it. It reaches this app's server in a POST body for each Canvas request and is used for that request only, and nothing logs it or returns it.
 - The course site address comes from the user, so the server only connects to public `https` hosts. It checks DNS answers at connect time and on every redirect, and it sends the token only to the origin the student named.
-- Nothing personal is stored on the server. There's no database. Syllabus text, deadlines and plans live in the browser's `localStorage`. PDFs are read in memory and dropped. Plans are built in the browser and never leave it.
+- Nothing personal is stored on the server. There's no database. Syllabus text, deadlines and plans live in the browser's `localStorage`. PDFs are read in memory and dropped. Plans are built in the browser and never leave it. Quiz attempts aren't stored at all, only whether each was right. **Speak** uses the browser's speech recognition, which may send audio to the browser's maker, and the UI says so.
 
 ## Adding accounts later
 
@@ -131,6 +140,7 @@ There's no auth in v0. All persistence goes through the `StateRepository` interf
 ## Known gaps and next steps
 
 - **Not built yet:** calendar events for study blocks (Step 4) and textbooks (Step 5). The `.ics` file still holds deadlines only.
+- **Coach limits:** built-in questions can't check your answer, so marking is on trust. Rebuilding doesn't know what you've done, so a rebuild can schedule a finished topic again. A block's topics are worked out from its text, so a heavily rewritten block may fall back to the whole plan. Claude's questions aren't saved, so leaving a quiz means asking again. The "you expected X%, you scored Y%" nudge from the evidence note isn't built. Materials are syllabuses only, because that's all the app imports: no lecture slides or course file library. Weekly Quercus announcement refresh isn't built.
 - **Plan limits:** blocks point at what the syllabus lists, not at exact pages or files, and syllabus topic tables are only read from markdown-style text, so PDFs and course site pages get generic "Unit 3 slides and notes" pointers. Whether a course is problem-based is a guess from its code and name. Hours per percent of a grade are rough estimates tuned to the sample plan. Plans don't know your class times or bedtime, so blocks have lengths and not clock times. You can't move a block to another day yet, or edit the Details section.
 - **Not tried on a live course yet:** the Canvas path has been tested against the mock site, and real Canvas sites have only been probed with a fake token. Real syllabus pages and course setups will turn up cases the mock doesn't have.
 - **Canvas sources:** it reads syllabuses only, not the Assignments API, which would give exact due dates and is the obvious next step. It can't see a syllabus that's on a Canvas Page, or in a module too large for Canvas to list inline. Those courses get a "no syllabus found" note.

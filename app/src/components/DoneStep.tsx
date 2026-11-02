@@ -4,7 +4,7 @@ import { useState } from "react";
 import { buildIcs } from "@/lib/ics";
 import { deadlinesMarkdown, planFilename, plainText, studyPlanMarkdown, undatedLine, weeklyScheduleMarkdown } from "@/lib/markdown";
 import { weeklySchedule } from "@/lib/schedule";
-import { rebuildPlans, type AppState, type Confirmed } from "@/lib/state";
+import { openCoach, rebuildPlans, type AppState, type Confirmed } from "@/lib/state";
 import { resetAll, update } from "@/lib/store";
 import { isNextSevenDays, sortRows, termOf } from "@/lib/table";
 import { Button, Card, COLUMNS } from "./ui";
@@ -47,6 +47,14 @@ export function DoneStep({ state, confirmed, today }: { state: AppState; confirm
 
   return (
     <>
+      {plans && plans.plans.length > 0 && (
+        <Card title="Ready to study?">
+          <p className="mb-3 text-sm text-stone-600">Coach shows what&apos;s on today, quizzes you on it, and keeps track of what&apos;s done.</p>
+          <Button variant="primary" onClick={() => update(openCoach)}>
+            What&apos;s today?
+          </Button>
+        </Card>
+      )}
       <Card title={`Deadlines, ${state.term}`}>
         <p className="text-sm text-stone-600">
           Times are {state.timezone}. &quot;(assumed)&quot; = not stated in the syllabus.
@@ -162,7 +170,7 @@ export function DoneStep({ state, confirmed, today }: { state: AppState; confirm
         <Button onClick={() => update((s) => ({ ...s, step: "confirm" }))}>Edit deadlines</Button>
         <Button
           onClick={() => {
-            if (window.confirm("Clear your syllabuses, deadlines and plans from this browser?")) resetAll();
+            if (window.confirm("Clear your syllabuses, deadlines, plans and progress from this browser?")) resetAll();
           }}
         >
           Start over

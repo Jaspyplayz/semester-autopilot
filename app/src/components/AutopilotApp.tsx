@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { todayIn } from "@/lib/dates";
 import { getServerSnapshot, getSnapshot, lastSaveFailed, subscribe } from "@/lib/store";
+import { CoachStep } from "./CoachStep";
 import { ConfirmStep } from "./ConfirmStep";
 import { DoneStep } from "./DoneStep";
 import { InputStep } from "./InputStep";
@@ -13,6 +14,7 @@ const STEPS = [
   { key: "confirm", label: "Check deadlines" },
   { key: "plans", label: "Check plans" },
   { key: "done", label: "Done" },
+  { key: "coach", label: "Coach" },
 ] as const;
 
 export default function AutopilotApp() {
@@ -51,6 +53,9 @@ export default function AutopilotApp() {
       )}
       {state.step === "done" && state.confirmed && (
         <DoneStep state={state} confirmed={state.confirmed} today={today} />
+      )}
+      {state.step === "coach" && state.plans && state.confirmed && (
+        <CoachStep state={state} plans={state.plans} confirmed={state.confirmed} today={today} />
       )}
     </>
   );
