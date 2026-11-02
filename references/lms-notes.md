@@ -1,5 +1,7 @@
 # LMS notes
 
+New LMS parsers (D2L, Moodle) are added one at a time, each with a fixture in `examples/`, and must pass `npm run check-fixtures`.
+
 ## Canvas (Quercus at U of T, and most Canvas schools)
 - Course URL: `https://<host>/courses/<id>`. Tabs: Home, Announcements, Modules, Syllabus, Assignments, Quizzes, Files, Grades.
 - Modules list every linked file; a file link looks like `/courses/<id>/files/<file_id>`. Add `/download?download_frd=1` to download it directly.

@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { parseSyllabus, parseSyllabuses } from "./parse";
 import { extractPdfText } from "./pdf";
-import { deadlinesMarkdown, markdownTable } from "./markdown";
+import { deadlinesMarkdown } from "./markdown";
 import { isPast, sortRows, termOf, whatYouConfirmed } from "./table";
 import {
   SAMPLE_COURSES,
+  applySampleAnswers,
   expectedDeadlines,
   sampleMarkdown,
   samplePdf,
-  tableRows,
 } from "./test-helpers";
 import type { Deadline } from "./types";
 
@@ -33,18 +33,6 @@ function parseSamples(kind: "md" | "pdf" = "md") {
   ).then((sources) => parseSyllabuses(sources, { term: "Fall 2026" }));
 }
 
-/**
- * What the student answers in the sample README: "HIS coverage, not sure, keep
- * it assumed. Lab reports are due Oct 16, Oct 30, Nov 13 and Nov 27."
- */
-function applySampleAnswers(rows: Deadline[]): Deadline[] {
-  const labDates = ["Fri Oct 16, 23:59", "Fri Oct 30, 23:59", "Fri Nov 13, 23:59", "Fri Nov 27, 23:59"];
-  return rows.map((r) => {
-    const m = r.what.match(/^Lab report (\d)$/);
-    return m ? { ...r, when: labDates[Number(m[1]) - 1] } : r;
-  });
-}
-
 describe("sample syllabuses (examples/sample-university)", () => {
   it("reads course codes and names", async () => {
     const ex = await parseSamples();
@@ -56,7 +44,7 @@ describe("sample syllabuses (examples/sample-university)", () => {
     expect(ex.warnings).toEqual([]);
   });
 
-  it("matches expected-output/deadlines.md once the student's answers are applied", async () => {
+  it("hides past items, and the only assumed worths left are the lab reports", async () => {
     const ex = await parseSamples();
     // Items already past on Oct 5 (BIO Quiz 1 on Sep 25, CS Assignment 1 on
     // Oct 2) aren't in the expected table; the app hides them the same way.
@@ -67,17 +55,9 @@ describe("sample syllabuses (examples/sample-university)", () => {
     ]);
 
     const confirmed = applySampleAnswers(upcoming);
-    const ours = tableRows(markdownTable(confirmed, TERM, TODAY));
-    const expected = tableRows(expectedDeadlines());
 
-    // Documented difference: the syllabus says "Lab reports (4) 20%". The
-    // parser splits that into 5% each and marks it "(assumed)" because the
-    // syllabus doesn't say the reports are weighted equally. The expected
-    // output (written after the student confirmed) shows plain "5%".
-    const normalised = ours.map((cells) => cells.map((c) => c.replace("5% (assumed)", "5%")));
-    expect(normalised).toEqual(expected);
-
-    // And the only assumed worth values are the four lab reports.
+    // The syllabus says "Lab reports (4) 20%", not that they're equal. The whole
+    // table is compared with expected-output in check-fixtures.test.ts.
     expect(confirmed.filter((r) => /assumed/.test(r.worth)).map((r) => r.what)).toEqual([
       "Lab report 1",
       "Lab report 2",

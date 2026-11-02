@@ -36,12 +36,12 @@ npm test           # unit tests (vitest)
 npm run lint
 npm run typecheck
 npm run build
+npm run check-fixtures
 ```
 
-`src/lib/parse.test.ts` parses the three Maple Hollow syllabuses, as both markdown and PDF, and compares the result with `expected-output/deadlines.md`. There are two documented differences:
+`npm run check-fixtures` parses the three Maple Hollow syllabuses, as both markdown and PDF, renders `deadlines.md` the way the app does, and diffs it against `expected-output/deadlines.md`. `npm test` runs the same check, so CI fails if a parser change alters the output.
 
-- **Lab report dates.** The syllabus only says "Due the Friday after each lab". The dates in the expected output came from the student, so the parser leaves them `TBA` and asks. The test applies the student's answers before comparing.
-- **Lab report weights.** "Lab reports (4), 20%" becomes `5% (assumed)` each, because the syllabus doesn't say they're equal. The expected output shows plain `5%`.
+The syllabus only says lab reports are "Due the Friday after each lab". The dates in the expected output came from the student, so the parser leaves them `TBA` and asks. The checker applies the student's answers before comparing.
 
 Items already past on the sample's "today" (BIO Quiz 1, CS Assignment 1) are hidden by default, as they are in the expected output. **Show already past** brings them back.
 
@@ -121,7 +121,7 @@ src/lib/                Pure logic, unit tested
   store.ts              Browser store, saving through localStorage
 src/components/         The steps, including Coach and study mode
 src/app/api/            pdf-text, llm-status, extract-llm, coach-quiz, canvas/courses, canvas/syllabus
-scripts/                prove-e2e.ts, mock-canvas.ts
+scripts/                prove-e2e.ts, mock-canvas.ts, check-fixtures.ts
 ```
 
 Canvas calls go through the server because Canvas doesn't allow API calls with a token from other sites' pages.
