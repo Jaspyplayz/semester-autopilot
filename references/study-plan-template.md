@@ -1,38 +1,58 @@
-# Study plan template
+# Study plan template (one screen)
 
-Plain language, short sentences, real file paths and page numbers. Hours are estimates and say so.
+Students read these on their phone. The visible part is only the header, the day-by-day checklist, and one "short on time" line. Everything else goes in the collapsed **Details** section.
+
+## Rules
+- **Header:** two lines. Line 1: course, test, date, time, room. Line 2: weight, coverage, days and total hours.
+- **Days:** one `##` per study day, titled `<Day Mon D> · <hours> h`. Skip days with no study for this course.
+- **Blocks:** a checkbox each, at most 3 per day, in this shape: `- [ ] <time> · <one action>`. One action means one thing to read, watch or do, with where to find it.
+- **Where to find it:** Power mode gives a path and pages (`` `Week 6/Lecture 11.pdf` p. 4-20 ``). Basic mode gives what the student has ("Textbook ch. 7.2", "Week 6 slides on the course site").
+- **Last study day:** a timed mock test plus redoing mistakes.
+- **Test day:** what to bring, light review only.
+- **Short on time:** one line. What to keep, what to cut first.
+- **Long plans:** if the test is more than 10 study days away, show only the next 7 days in full and summarize the rest in one line per week inside Details.
+- Hours are estimates. Say so once, in Details.
+
+## Template
 
 ```markdown
-# <COURSE> <Test name> study plan
+# <COURSE> · <Test> · <Day Mon D>, <time>, <room>
+<weight>% · <coverage> · <n> study days, about <h> h
 
-**<Test name>:** <Day Month Date>, <time> at <room>. Worth <weight>%.
-**Covers:** <units/chapters>. (Say "assumed" if it isn't stated.)
-**Files:** `<path to course folder>`. Shorthand used below: <e.g. "the guide" = Practice Guide.pdf>.
+## <Day Mon D> · <h> h
+- [ ] <time> · <action, with where to find it>
+- [ ] <time> · <action>
 
-These hours are estimates.
+## <Day Mon D> · <h> h
+- [ ] <time> · <action>
 
-## <Day Date> (about <n> h): <topic>
-- Read/watch <file> p. <x> to <y>.
-- Practice: <file> Q<n>, Q<m>. Check against <solutions file>.
-- <Fixed events that day, e.g. other course's tutorial>
-
-## ... one section per day ...
-
-## <Day before the test>: mock test
-- A timed mock built from past papers, marked with solutions, then redo mistakes.
+## <Day before the test> · <h> h · mock test
+- [ ] <time> · Timed mock: <past test or practice set>
+- [ ] <time> · Redo every mistake, then reread <weakest topic>
 
 ## Test day
-- Light review only. Bring <ID, calculator, aid sheet if allowed>.
+- [ ] Bring <student card, calculator, aid sheet if allowed>
 
-## If you run out of time
-Keep <highest-value topics + mock>. Cut <lowest-value> first.
+**Short on time?** Keep <highest-value topics> and the mock. Cut <lowest-value> first.
 
-## Watch out for
-- Clashes with other courses' tests, conflicting due dates, missed quizzes.
+<details>
+<summary>Details: topics, assumptions, sources</summary>
 
-## Not checked
-- Anything assumed: coverage, format, aid sheet, material not downloaded yet.
+**Topics covered:** <list, with the weight of each if known>
+
+**Assumed:** <coverage, format, aid sheet: anything not stated by the instructor>
+
+**Sources:** <file shorthand, e.g. "the guide" = Practice Guide.pdf; textbook edition>
+
+**Clashes:** <other tests or due dates that week and how this plan avoids them>
+
+**Not checked:** <material not downloaded, links not opened>
+
+Hours are estimates. Times are suggestions around your classes.
+</details>
 ```
+
+Viewers that don't support `<details>` show the section expanded at the bottom, which is fine.
 
 ## Fitting several courses together
 - Weight daily hours by test weight and how soon it is.
