@@ -4,7 +4,7 @@ How every change to this repo gets built and reviewed. Claude Code does the buil
 
 ## The loop
 
-1. **Build.** One Claude Code session implements the spec on a branch and opens a PR using the [PR template](../.github/pull_request_template.md), with its [artifacts](#artifacts-before-a-yes) filled in.
+1. **Build.** One Claude Code session implements the spec on a branch and opens a PR using the [PR template](../.github/pull_request_template.md), with its [artifacts](#artifacts-before-a-yes) filled in. A bug fix does its [repro](#bug-fixes) first.
 2. **Review.** Three separate Claude Code sessions review that PR's latest commit, in parallel:
    - **Spec:** does the change match the brief?
    - **Tests:** are the checks and commands adequate for what changed?
@@ -16,7 +16,7 @@ How every change to this repo gets built and reviewed. Claude Code does the buil
 
 ## Stop-the-line verdicts
 
-Any stage can stop the line: build, each of the three reviews, and the verdict. A stop is a good outcome. It keeps bad work from flowing on.
+Any stage can stop the line: repro, build, each of the three reviews, and the verdict. A stop is a good outcome. It keeps bad work from flowing on.
 
 Valid stops include:
 
@@ -50,7 +50,18 @@ Docs-only means the PR changes only prose docs. The exemption covers the check, 
 
 Artifacts don't replace the Yes. A ready PR still waits for Jasper.
 
+After merge, re-run the proof on `main` and post the output on the PR. This adds no auto-merge, and the Yes still comes first.
+
+## Bug fixes
+
+A bug fix starts with a repro stage, and "done" asks for more than the artifacts above. Reviewers FAIL a fix PR that skips any of this.
+
+- **Repro.** Before you open the fix PR, hit the broken state twice and capture evidence for the PR: a screenshot or failing test output. "Can't repro" is a valid [stop](#stop-the-line-verdicts).
+- **Bug → enforcer.** The PR adds a lint rule, type, or test that would have caught the bug, or says why not. `docs/agent-failures.md` lists which enforcer to pick.
+- **`fix:` titles.** A PR titled `fix:` must add or change a test, whatever its enforcer.
+
 ## Rules
 
 - A new commit needs new reviews. A PASS only counts for the commit it reviewed.
 - Green CI isn't a reviewer PASS. You need both.
+- End the PR description with `Principles Used: principle → the choice it changed`. Name only principles that changed a choice.
