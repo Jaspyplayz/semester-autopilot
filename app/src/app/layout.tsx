@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Semester Autopilot",
-  description: "Turn your syllabuses into one confirmed list of every test and deadline, plus a calendar file.",
+  description: "Turn your syllabuses into one confirmed list of every test and deadline, study plans you can edit, and a calendar file.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

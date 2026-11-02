@@ -1,7 +1,7 @@
 "use client";
 
 import { parseWhen } from "@/lib/dates";
-import { confirmDraft, visibleRows, type AppState, type Draft } from "@/lib/state";
+import { confirmDraft, visibleRows, wouldLosePlanEdits, type AppState, type Draft } from "@/lib/state";
 import { update } from "@/lib/store";
 import {
   CLOSING_QUESTION,
@@ -242,7 +242,15 @@ export function ConfirmStep({ state, draft, today }: { state: AppState; draft: D
         <Button
           variant="primary"
           disabled={unreadable.length > 0 || incomplete.length > 0}
-          onClick={() => update((s) => confirmDraft(s, today))}
+          onClick={() => {
+            if (
+              wouldLosePlanEdits(state, today) &&
+              !window.confirm("Your deadlines changed, so your study plans will be rebuilt. Your edits to them will be replaced.")
+            ) {
+              return;
+            }
+            update((s) => confirmDraft(s, today));
+          }}
         >
           Confirm deadlines
         </Button>
