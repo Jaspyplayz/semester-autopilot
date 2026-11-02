@@ -3,7 +3,8 @@
 // .ics (the fallback).
 // Usage: npm run build && CANVAS_ALLOW_PRIVATE_HOSTS=1 npm start (in another shell), then
 //   BASE_URL=http://localhost:3000 npx tsx scripts/prove-e2e.ts
-import { readFileSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
+import { copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseSyllabuses } from "../src/lib/parse";
 import { parseTerm } from "../src/lib/dates";
@@ -77,12 +78,39 @@ async function proveCanvas() {
   }
 }
 
+// An empty Syllabus tab, and a file whose name gives nothing away, so the only
+// way to it is the link on the course home page.
+async function proveHomePage() {
+  const dir = mkdtempSync(join(tmpdir(), "sa-home-page-"));
+  const pdf = join(dir, "F26.pdf");
+  copyFileSync(join(PDF_DIR, "CS150-syllabus.pdf"), pdf);
+  const mock = await startMockCanvas([
+    {
+      id: 100,
+      code: "CS150",
+      name: "Intro",
+      frontPageBody: `<p>Welcome!</p><a href="/courses/100/files/1000?wrap=1">Course syllabus</a>`,
+      files: [pdf],
+    },
+  ]);
+  try {
+    const got = await post("/api/canvas/syllabus", { baseUrl: mock.url, token: MOCK_TOKEN, courseId: "100" });
+    assert(got.status === 200 && got.json.sources.length === 1, `POST /api/canvas/syllabus finds the file linked from the home page`);
+    assert(/F26\.pdf$/.test(got.json.sources[0].name) && got.json.sources[0].text.includes("Midterm"), `it read the PDF's text`);
+    assert(mock.leakedToCdn.length === 0, `no token reached the file CDN's origin after the redirect`);
+  } finally {
+    mock.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   const home = await fetch(BASE);
   assert(home.status === 200, `GET / returns 200`);
 
   console.log("\nCanvas path");
   await proveCanvas();
+  await proveHomePage();
   console.log("\nUpload path");
 
   const pdfs = readdirSync(PDF_DIR).filter((f) => f.endsWith(".pdf")).sort();
