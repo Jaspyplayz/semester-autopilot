@@ -326,15 +326,21 @@ export async function fetchCourseSyllabus(
   const notes: string[] = [];
   const note = (text: string) => notes.push(`${course.code}: ${text}.`);
 
-  const add = (name: string, text: string) => {
+  const add = (name: string, text: string, path: string) => {
     const cut = text.length > MAX_TEXT_CHARS;
     if (cut) note(`${name} is very long, so only the start was read`);
-    sources.push({ name: `${course.code} · ${name}`, kind: "canvas", text: text.slice(0, MAX_TEXT_CHARS), course: info });
+    sources.push({
+      name: `${course.code} · ${name}`,
+      kind: "canvas",
+      text: text.slice(0, MAX_TEXT_CHARS),
+      course: info,
+      url: `${conn.baseUrl}/courses/${course.id}/${path}`,
+    });
   };
 
   const body = raw.syllabus_body ?? "";
   const pageText = htmlToText(body);
-  if (pageText.length >= MIN_PAGE_CHARS) add("syllabus page", pageText);
+  if (pageText.length >= MIN_PAGE_CHARS) add("syllabus page", pageText, "assignments/syllabus");
 
   const optional = optionalLoads(note);
   const pages: CoursePage[] = [{ html: body, isPointer: isPointerPage(pageText) }];
@@ -364,13 +370,13 @@ export async function fetchCourseSyllabus(
     .slice(0, MAX_FILES_PER_COURSE);
   for (const { file, kind } of newest) {
     const result = await readFile(conn, file, kind, readPdf);
-    if ("text" in result) add(fileName(file), result.text);
+    if ("text" in result) add(fileName(file), result.text, `files/${file.id}`);
     else note(result.problem);
   }
 
   // A home page is usually a welcome message, so its text only counts if it has
   // marks on it and no file did the job.
-  if (MARKS_RE.test(homeText) && sources.length === sourcesBeforeFiles) add("home page", homeText);
+  if (MARKS_RE.test(homeText) && sources.length === sourcesBeforeFiles) add("home page", homeText, "");
 
   if (!sources.length) note("no syllabus found on the course site. Upload or paste it instead");
   return { course, sources, notes };

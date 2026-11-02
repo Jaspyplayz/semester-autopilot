@@ -43,4 +43,6 @@ export interface SyllabusSource {
   text: string;
   /** Set when the source came from a course site, which knows the course for certain. */
   course?: CourseInfo;
+  /** Where to open it on the course site. The student's own login gets them in. */
+  url?: string;
 }

@@ -142,6 +142,7 @@ describe("fetchCourseSyllabus", () => {
       name: "CSC 207H1 · syllabus page",
       course: { code: "CSC 207H1", name: "Software Design" },
     });
+    expect(sources[0].url).toMatch(/\/courses\/7\/assignments\/syllabus$/);
     expect(sources[0].text).toContain("## Marking scheme");
   });
 

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { markBlock, recordAttempt, todayView } from "./coach";
 import { changeBlock } from "./planner";
 import {
   applyCanvasImport,
   confirmDraft,
   confirmPlans,
   defaultState,
+  openCoach,
   rebuildPlans,
   reviveState,
   startDraft,
@@ -118,6 +120,54 @@ describe("study plans in the flow", () => {
     expect(revived.step).toBe("done");
     expect(revived.plans).toBeNull();
     expect(revived.planSettings).toEqual({ maxHoursPerDay: 6, daysOff: [] });
+  });
+});
+
+describe("coach in the flow", () => {
+  const planned = confirmDraft(startDraft(defaultState(), extraction, "rules"), TODAY);
+  const confirmed = confirmPlans(planned, TODAY);
+  const item = todayView(planned.plans!, planned.coach, TODAY).blocks[0];
+  const topic = { label: "Unit 1" };
+  const studied = (s: AppState): AppState => ({
+    ...s,
+    coach: recordAttempt(markBlock(s.coach, item, "done"), { course: "ABC 100", topic, correct: true, recall: true, date: TODAY, testDate: null }),
+  });
+
+  it("opens only on confirmed plans", () => {
+    expect(openCoach(confirmed).step).toBe("coach");
+    expect(openCoach(planned).step).toBe("plans");
+    expect(openCoach(defaultState()).step).toBe("input");
+  });
+
+  it("survives a reload, marks and progress included", () => {
+    const s = studied(openCoach(confirmed));
+    const revived = reviveState(JSON.parse(JSON.stringify(s)))!;
+    expect(revived).toEqual(s);
+    expect(revived.step).toBe("coach");
+    expect(todayView(revived.plans!, revived.coach, TODAY).blocks[0].status).toBe("done");
+  });
+
+  it("falls back to the downloads when the plans aren't confirmed any more", () => {
+    const s = { ...openCoach(confirmed), plans: { ...confirmed.plans!, confirmedOn: null } };
+    expect(reviveState(JSON.parse(JSON.stringify(s)))?.step).toBe("done");
+  });
+
+  it("loads state saved before Coach existed, and a mangled save", () => {
+    const old: Partial<AppState> = { ...confirmed };
+    delete old.coach;
+    expect(reviveState(JSON.parse(JSON.stringify(old)))?.coach).toEqual({ marks: {}, topics: {} });
+    expect(reviveState({ ...confirmed, coach: "nope" })?.coach).toEqual({ marks: {}, topics: {} });
+  });
+
+  it("keeps topic progress and identical blocks through a rebuild", () => {
+    const rebuilt = rebuildPlans(studied(confirmed), TODAY);
+    expect(rebuilt.coach.topics).toEqual(studied(confirmed).coach.topics);
+    expect(todayView(rebuilt.plans!, rebuilt.coach, TODAY).blocks[0].status).toBe("done");
+  });
+
+  it("keeps progress when a new syllabus starts over, and starts empty", () => {
+    expect(startDraft(studied(confirmed), extraction, "rules").coach.topics).toEqual(studied(confirmed).coach.topics);
+    expect(defaultState().coach).toEqual({ marks: {}, topics: {} });
   });
 });
 

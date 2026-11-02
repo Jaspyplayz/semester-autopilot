@@ -71,6 +71,12 @@ export function syllabusTopics(text: string): SyllabusTopics {
   return out;
 }
 
+/** Every topic name a syllabus gives, without exam weeks and the like. */
+export function syllabusTopicNames(syllabus: SyllabusTopics): string[] {
+  const names = [...syllabus.units.values(), ...syllabus.weeks.values()].map((n) => n.name);
+  return [...new Set(names)].filter((n) => !NOT_A_TOPIC.test(n));
+}
+
 /** The syllabus text for a course, from its site import or a code near the top of the file. */
 export function sourceFor(course: string, sources: SyllabusSource[]): string | null {
   const squash = (s: string) => s.replace(/\s+/g, "").toUpperCase();
@@ -81,20 +87,24 @@ export function sourceFor(course: string, sources: SyllabusSource[]): string | n
   return match?.text ?? null;
 }
 
+/** Everything in session for a course: its site imports first, then files that name it near the top. */
+export function sourcesFor(course: string, sources: SyllabusSource[]): SyllabusSource[] {
+  const squash = (s: string) => s.replace(/\s+/g, "").toUpperCase();
+  const code = squash(course);
+  const imported = sources.filter((s) => s.course && squash(s.course.code) === code);
+  const named = sources.filter((s) => !imported.includes(s) && !s.course && squash(s.text.slice(0, 300)).includes(code));
+  return [...imported, ...named];
+}
+
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/**
- * "Units 1-6" -> Unit 1..6, "Weeks 1-7" -> Week 1..7, "Ch. 2-8", or a plain
- * "cells, genetics" list. An empty result means coverage is unknown.
- */
-export function topicsFromCovers(covers: string, syllabus: SyllabusTopics | null): Topic[] {
-  const clean = covers.replace(/\(assumed\)/gi, "").trim();
-  if (!clean) return [];
+/** Every "Units 1-6", "Week 4" or "Ch. 2-8" in a piece of text, expanded and named from the syllabus. */
+export function numberedTopics(text: string, syllabus: SyllabusTopics | null): Topic[] {
   const found: Topic[] = [];
   const pattern = /\b(units?|weeks?|ch(?:apters?|s?\.?)|modules?|lectures?|lessons?|sections?|topics?)\.?\s*(\d{1,2})(?:\s*(?:-|–|to)\s*(\d{1,2}))?/gi;
-  for (const m of clean.matchAll(pattern)) {
+  for (const m of text.matchAll(pattern)) {
     const from = Number(m[2]);
     const to = Number(m[3] ?? m[2]);
     if (to < from || to - from > MAX_RANGE) continue;
@@ -113,6 +123,17 @@ export function topicsFromCovers(covers: string, syllabus: SyllabusTopics | null
       });
     }
   }
+  return found;
+}
+
+/**
+ * "Units 1-6" -> Unit 1..6, "Weeks 1-7" -> Week 1..7, "Ch. 2-8", or a plain
+ * "cells, genetics" list. An empty result means coverage is unknown.
+ */
+export function topicsFromCovers(covers: string, syllabus: SyllabusTopics | null): Topic[] {
+  const clean = covers.replace(/\(assumed\)/gi, "").trim();
+  if (!clean) return [];
+  const found = numberedTopics(clean, syllabus);
   if (found.length) return found;
   if (/\d/.test(clean)) return [];
   return clean

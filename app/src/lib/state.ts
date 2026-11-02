@@ -4,13 +4,14 @@
 // nothing else needs to know.
 
 import { DEFAULT_CANVAS_URL } from "./canvas-url";
+import { carryMarks, emptyCoach, reviveCoach, type CoachState } from "./coach";
 import { isValidTimeZone } from "./dates";
 import { parseSyllabuses } from "./parse";
 import { DEFAULT_PLAN_SETTINGS, buildPlans, deadlinesBasis, type PlanSet, type PlanSettings } from "./planner";
 import { isPast, normalizeWhen, sortRows, termOf, whatYouConfirmed } from "./table";
 import type { CourseInfo, Deadline, Extraction, SyllabusSource } from "./types";
 
-export type Step = "input" | "confirm" | "plans" | "done";
+export type Step = "input" | "confirm" | "plans" | "done" | "coach";
 
 export interface Draft {
   rows: Deadline[];
@@ -43,6 +44,8 @@ export interface AppState {
   /** Study plans for the confirmed deadlines. Confirmed once plans.confirmedOn is set. */
   plans: PlanSet | null;
   planSettings: PlanSettings;
+  /** What's done and how well each topic is sticking. Outlives rebuilt plans and re-imports. */
+  coach: CoachState;
   /** The course site's address. Its token is kept apart from this: see canvas-session.ts. */
   canvasBaseUrl: string;
 }
@@ -67,6 +70,7 @@ export function defaultState(): AppState {
     confirmed: null,
     plans: null,
     planSettings: DEFAULT_PLAN_SETTINGS,
+    coach: emptyCoach(),
     canvasBaseUrl: DEFAULT_CANVAS_URL,
   };
 }
@@ -84,10 +88,12 @@ export function reviveState(raw: unknown): AppState | null {
       ? "confirm"
       : usable && s.step === "plans" && s.plans && s.confirmed
         ? "plans"
-        : usable && s.step === "done" && s.confirmed
-          ? "done"
-          : "input";
-  return { ...defaultState(), ...s, step };
+        : usable && s.step === "coach" && s.plans?.confirmedOn && s.confirmed
+          ? "coach"
+          : usable && (s.step === "done" || s.step === "coach") && s.confirmed
+            ? "done"
+            : "input";
+  return { ...defaultState(), ...s, step, coach: reviveCoach(s.coach) };
 }
 
 export function startDraft(state: AppState, extraction: Extraction, method: Draft["method"]): AppState {
@@ -174,21 +180,23 @@ export function wouldLosePlanEdits(state: AppState, today: string): boolean {
 /** A fresh plan from the confirmed deadlines, starting today. */
 export function rebuildPlans(state: AppState, today: string, settings: PlanSettings = state.planSettings): AppState {
   if (!state.confirmed) return state;
-  return {
-    ...state,
-    planSettings: settings,
-    plans: buildPlans({
-      rows: state.confirmed.rows,
-      courses: state.draft?.courses ?? [],
-      sources: state.sources,
-      term: termOf(state.term, today),
-      today,
-      settings,
-    }),
-  };
+  const plans = buildPlans({
+    rows: state.confirmed.rows,
+    courses: state.draft?.courses ?? [],
+    sources: state.sources,
+    term: termOf(state.term, today),
+    today,
+    settings,
+  });
+  return { ...state, planSettings: settings, plans, coach: carryMarks(state.coach, plans, today) };
 }
 
 export function confirmPlans(state: AppState, today: string): AppState {
   if (!state.plans) return state;
   return { ...state, step: "done", plans: { ...state.plans, confirmedOn: today } };
+}
+
+/** Coach needs plans the student has confirmed. */
+export function openCoach(state: AppState): AppState {
+  return state.plans?.confirmedOn && state.confirmed ? { ...state, step: "coach" } : state;
 }
