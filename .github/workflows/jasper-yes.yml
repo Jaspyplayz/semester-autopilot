@@ -1,0 +1,84 @@
+name: Jasper Yes
+
+# Turns the `jasper-yes` label into a `jasper-yes` commit status on the exact
+# commit that was labeled, then hands the merge to GitHub auto-merge. See
+# docs/merge-safety.md.
+#
+# pull_request_target runs this file from the base branch, so a PR can't rewrite
+# its own gate. This token can write: never check out or run PR code here.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  statuses: write
+
+jobs:
+  gate:
+    if: >-
+      (github.event.action != 'labeled' && github.event.action != 'unlabeled')
+      || github.event.label.name == 'jasper-yes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Serial, so the last label change wins. A queued run can be replaced by a
+    # newer one, which only ever leaves a commit without a Yes.
+    concurrency:
+      group: jasper-yes-${{ github.event.pull_request.number }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      ACTION: ${{ github.event.action }}
+      PR: ${{ github.event.pull_request.number }}
+      SHA: ${{ github.event.pull_request.head.sha }}
+      BASE: ${{ github.event.pull_request.base.ref }}
+      SENDER: ${{ github.event.sender.login }}
+      OWNER: ${{ github.repository_owner }}
+      HAS_YES: ${{ contains(github.event.pull_request.labels.*.name, 'jasper-yes') }}
+    steps:
+      - name: Update the Yes for this commit
+        run: |
+          status() {
+            gh api "repos/$GH_REPO/statuses/$SHA" --silent \
+              -f context=jasper-yes -f state="$1" -f description="$2"
+          }
+          # Best effort: the missing status on the new commit is what blocks the merge.
+          disable_auto() { gh pr merge "$PR" --disable-auto || true; }
+
+          case "$ACTION" in
+            opened | reopened)
+              [ "$HAS_YES" = true ] || status pending "Waiting for the jasper-yes label"
+              ;;
+            synchronize)
+              status pending "New commit: needs a new Yes"
+              [ "$HAS_YES" = false ] || gh pr edit "$PR" --remove-label jasper-yes
+              disable_auto
+              ;;
+            unlabeled)
+              status pending "Yes withdrawn"
+              disable_auto
+              ;;
+            labeled)
+              if [ "$SENDER" != "$OWNER" ]; then
+                echo "::error::Only $OWNER can say Yes; $SENDER applied the label."
+                status pending "Only $OWNER can say Yes"
+                gh pr edit "$PR" --remove-label jasper-yes
+                exit 1
+              fi
+
+              # Without these required checks, --auto would merge right away with
+              # CI red or missing. Refuse instead.
+              required="$(gh api "repos/$GH_REPO/branches/$BASE" \
+                --jq '.protection.required_status_checks.contexts // [] | sort | join(",")')"
+              if [ "$required" != "app,jasper-yes" ]; then
+                echo "::error::$BASE must require exactly app and jasper-yes, found '$required'. See docs/merge-safety.md."
+                status pending "$BASE is not protected: refusing to merge"
+                exit 1
+              fi
+
+              status success "Yes on ${SHA:0:7}"
+              # GitHub merges once every required check on this commit is green.
+              gh pr merge "$PR" --auto --merge --match-head-commit "$SHA"
+              ;;
+          esac
