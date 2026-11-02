@@ -6,13 +6,14 @@ export default function Home() {
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Semester Autopilot</h1>
         <p className="mt-1 text-stone-600">
-          Turn your syllabuses into one checked list of every test and deadline, plus a calendar file.
+          Turn your Quercus or Canvas courses into one checked list of every test and deadline, plus a calendar file.
         </p>
       </header>
       <AutopilotApp />
       <footer className="mt-10 border-t border-stone-200 pt-4 text-sm text-stone-500">
         Your syllabuses and deadlines stay in this browser. PDFs are read on the server to get their text and are not
-        kept. This app never asks for your course site password and doesn&apos;t log in to your course site.
+        kept. This app never asks for your course site password. If you connect a course site, your access token stays
+        in this tab and passes through this app&apos;s server only to reach that site. It isn&apos;t stored or logged.
       </footer>
     </main>
   );

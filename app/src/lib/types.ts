@@ -39,6 +39,8 @@ export interface Extraction {
 export interface SyllabusSource {
   id: string;
   name: string;
-  kind: "pdf" | "md" | "txt" | "paste" | "sample";
+  kind: "pdf" | "md" | "txt" | "paste" | "sample" | "canvas";
   text: string;
+  /** Set when the source came from a course site, which knows the course for certain. */
+  course?: CourseInfo;
 }

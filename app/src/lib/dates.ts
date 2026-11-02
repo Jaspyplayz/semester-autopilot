@@ -131,6 +131,14 @@ export function parseTerm(label: string, fallbackYear: number): Term {
   return { label, season, year, springYear: year };
 }
 
+/** The term to use when every course shares one that gives a season and a year. */
+export function inferTerm(terms: string[]): string | null {
+  const unique = [...new Set(terms)];
+  if (unique.length !== 1) return null;
+  const parsed = parseTerm(unique[0], 0);
+  return parsed.season !== "unknown" && parsed.year !== 0 ? unique[0] : null;
+}
+
 /** Year for a month in this term. */
 export function yearForMonth(term: Term, month: number): number {
   if (term.springYear !== term.year) return month >= 8 ? term.year : term.springYear;

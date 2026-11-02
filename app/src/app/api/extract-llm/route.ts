@@ -9,6 +9,7 @@ import {
   buildLlmUserMessage,
   llmToExtraction,
 } from "@/lib/llm";
+import { isSameOrigin } from "@/lib/origin";
 
 // Optional: only works when ANTHROPIC_API_KEY is set. Syllabus text is sent to
 // the Anthropic API for this one request and isn't stored here.
@@ -20,16 +21,6 @@ const BodySchema = z.object({
 });
 
 const fail = (status: number, error: string) => Response.json({ error }, { status });
-
-function isSameOrigin(request: Request): boolean {
-  const origin = request.headers.get("origin");
-  if (!origin) return true; // Not a browser page; the key is still never exposed.
-  try {
-    return new URL(origin).host === request.headers.get("host");
-  } catch {
-    return false; // "Origin: null", from a sandboxed page.
-  }
-}
 
 export async function POST(request: Request) {
   if (!process.env.ANTHROPIC_API_KEY) {

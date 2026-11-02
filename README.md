@@ -29,7 +29,7 @@ Full steps, including Power mode, are in [SETUP.md](SETUP.md). Want to try it fi
 - `app/`: the web app (Next.js).
 
 ## Web app
-[`app/`](app/) is an early web version of the first two steps: upload your syllabuses, confirm the deadline table, then download `deadlines.md` and an `.ics` file. It needs no account or API key, and your data stays in your browser. Study plans are still skill-only. To run or deploy it, see [`app/README.md`](app/README.md).
+[`app/`](app/) is an early web version of the first two steps: connect Quercus or any Canvas site with an access token (or upload your syllabuses instead), confirm the deadline table, then download `deadlines.md` and an `.ics` file. It needs no account or Anthropic API key. Your syllabuses and deadlines stay in your browser, and your token stays in that tab, passing through the app's server only to reach your course site. Study plans are still skill-only. To run or deploy it, see [`app/README.md`](app/README.md).
 
 ## Safety
 Claude never asks for or types your password. You log in to your course site and library yourself. Textbooks come only from your library's licensed access or official open textbooks. Nothing in your folders is deleted or overwritten without your OK.

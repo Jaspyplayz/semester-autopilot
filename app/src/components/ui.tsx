@@ -29,4 +29,6 @@ export function Card({ title, children }: { title?: string; children: ReactNode 
   );
 }
 
+export const INPUT = "w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm";
+
 export const COLUMNS = ["When", "Course", "What", "Worth", "Covers"] as const;

@@ -3,7 +3,9 @@
 // later, implement StateRepository against a backend and scope it to the user;
 // nothing else needs to know.
 
+import { DEFAULT_CANVAS_URL } from "./canvas-url";
 import { isValidTimeZone } from "./dates";
+import { parseSyllabuses } from "./parse";
 import { isPast, normalizeWhen, sortRows, termOf, whatYouConfirmed } from "./table";
 import type { CourseInfo, Deadline, Extraction, SyllabusSource } from "./types";
 
@@ -37,6 +39,8 @@ export interface AppState {
   draft: Draft | null;
   showPast: boolean;
   confirmed: Confirmed | null;
+  /** The course site's address. Its token is kept apart from this: see canvas-session.ts. */
+  canvasBaseUrl: string;
 }
 
 export interface StateRepository {
@@ -57,6 +61,7 @@ export function defaultState(): AppState {
     draft: null,
     showPast: false,
     confirmed: null,
+    canvasBaseUrl: DEFAULT_CANVAS_URL,
   };
 }
 
@@ -88,6 +93,26 @@ export function startDraft(state: AppState, extraction: Extraction, method: Draf
       method,
     },
   };
+}
+
+export interface CanvasImport {
+  sources: SyllabusSource[];
+  /** Shown above the table: files that couldn't be read, courses with no syllabus. */
+  notes: string[];
+  /** The course site's term, when the chosen courses agree on one. */
+  term: string | null;
+}
+
+/** Swaps in a fresh import from the course site and reads it. An empty import changes nothing. */
+export function applyCanvasImport(state: AppState, imported: CanvasImport): AppState {
+  if (!imported.sources.length) return state;
+  const next: AppState = {
+    ...state,
+    term: imported.term ?? state.term,
+    sources: [...state.sources.filter((s) => s.kind !== "canvas"), ...imported.sources],
+  };
+  const extraction = parseSyllabuses(next.sources, { term: next.term });
+  return startDraft(next, { ...extraction, warnings: [...imported.notes, ...extraction.warnings] }, "rules");
 }
 
 /** Rows in play: past items stay out unless the student asked to see them. */

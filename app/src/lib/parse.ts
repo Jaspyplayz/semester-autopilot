@@ -29,6 +29,8 @@ export interface ParseOptions {
   term: string;
   /** File name, used in warnings and as a last-resort course label. */
   sourceName?: string;
+  /** The course, when a course site already told us. Wins over anything in the text. */
+  course?: CourseInfo;
 }
 
 interface MeetingSlot {
@@ -50,6 +52,8 @@ export interface CourseParse {
   undated: string[];
   finals: FinalEntry[];
   warnings: string[];
+  /** Came from a course site, where a page and a file for one course are expected. */
+  fromCourseSite?: boolean;
 }
 
 const COURSE_CODE_RE = /\b([A-Z]{2,8})[ -]?(\d{3,4}[A-Z]?\d?)\b/g;
@@ -73,6 +77,15 @@ const ASSESSMENT_WORD_RE =
 const MAX_EXPANDED_ROWS = 6;
 const ASSESSMENT_HEADING_RE =
   /^(assessments?|assessment (scheme|summary|and grading)|marking( scheme)?|grading( scheme| breakdown)?|evaluation|grades?|course ?work|marks? breakdown|method of evaluation|important dates|key dates|due dates|deadlines|tests and assignments)\b/i;
+
+/** The first course code in a line, as "CSC 207H1", with what follows it. */
+export function findCourseCode(line: string): { code: string; rest: string } | null {
+  const m = [...line.matchAll(COURSE_CODE_RE)].find((x) => !NOT_A_COURSE_RE.test(x[1]));
+  if (!m) return null;
+  return { code: `${m[1]} ${m[2]}`, rest: line.slice((m.index ?? 0) + m[0].length) };
+}
+
+const noMarksWarning = (code: string) => `${code}: no assessments with a weight found.`;
 
 function cleanLine(raw: string): string {
   return raw
@@ -257,16 +270,17 @@ export function parseSyllabus(text: string, opts: ParseOptions): CourseParse {
   const cleaned = lines.map(cleanLine);
   const warnings: string[] = [];
 
-  // Course code and name, from the first lines that have a code.
-  let code = "";
-  let name = "";
-  for (const line of cleaned.slice(0, 20)) {
-    const m = [...line.matchAll(COURSE_CODE_RE)].find((x) => !NOT_A_COURSE_RE.test(x[1]));
-    if (m && !/^isbn/i.test(line)) {
-      code = `${m[1]} ${m[2]}`;
-      const after = line.slice((m.index ?? 0) + m[0].length).replace(/^[\s:\-–—,]+/, "");
-      name = after.split(/\s[·|]\s/)[0].trim();
-      break;
+  // Course code and name: from the course site, or the first lines that have a code.
+  let code = opts.course?.code ?? "";
+  let name = opts.course?.name ?? "";
+  if (!code) {
+    for (const line of cleaned.slice(0, 20)) {
+      const found = findCourseCode(line);
+      if (found && !/^isbn/i.test(line)) {
+        code = found.code;
+        name = found.rest.replace(/^[\s:\-–—,]+/, "").split(/\s[·|]\s/)[0].trim();
+        break;
+      }
     }
   }
   if (!code) {
@@ -443,7 +457,7 @@ export function parseSyllabus(text: string, opts: ParseOptions): CourseParse {
   }
 
   if (!rows.length && !undated.length && !finals.length) {
-    warnings.push(`${code}: no assessments with a weight found.`);
+    warnings.push(noMarksWarning(code));
   }
 
   return {
@@ -452,6 +466,7 @@ export function parseSyllabus(text: string, opts: ParseOptions): CourseParse {
     undated,
     finals,
     warnings,
+    fromCourseSite: Boolean(opts.course),
   };
 }
 
@@ -507,8 +522,11 @@ export function mergeParses(parses: CourseParse[], source: Deadline["source"] = 
   }
 
   const repeated = [...new Set(parses.map((p) => p.course.code))].filter(
-    (code) => parses.filter((p) => p.course.code === code).length > 1,
+    (code) => parses.filter((p) => p.course.code === code && !p.fromCourseSite).length > 1,
   );
+  // A syllabus page with no marks is fine if the course's PDF has them.
+  const hasMarks = (code: string) =>
+    parses.some((p) => p.course.code === code && (p.rows.length || p.undated.length || p.finals.length));
   return {
     courses: parses
       .map((p) => p.course)
@@ -516,15 +534,21 @@ export function mergeParses(parses: CourseParse[], source: Deadline["source"] = 
     rows,
     undated: [...new Set(parses.flatMap((p) => p.undated))],
     warnings: [
-      ...parses.flatMap((p) => p.warnings),
+      ...new Set(
+        parses.flatMap((p) =>
+          p.warnings.filter((w) => w !== noMarksWarning(p.course.code) || !hasMarks(p.course.code)),
+        ),
+      ),
       ...repeated.map((code) => `${code} was added more than once. Identical rows were merged.`),
     ],
   };
 }
 
 export function parseSyllabuses(
-  sources: Array<{ name: string; text: string }>,
+  sources: Array<{ name: string; text: string; course?: CourseInfo }>,
   opts: { term: string },
 ): Extraction {
-  return mergeParses(sources.map((s) => parseSyllabus(s.text, { term: opts.term, sourceName: s.name })));
+  return mergeParses(
+    sources.map((s) => parseSyllabus(s.text, { term: opts.term, sourceName: s.name, course: s.course })),
+  );
 }
