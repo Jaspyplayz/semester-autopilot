@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import type { CanvasCourse, CourseSyllabus } from "@/lib/canvas";
 import { clearCanvasToken, loadCanvasToken, saveCanvasToken } from "@/lib/canvas-session";
 import { normalizeBaseUrl } from "@/lib/canvas-url";
 import { inferTerm } from "@/lib/dates";
 import { applyCanvasImport, type AppState } from "@/lib/state";
 import { update } from "@/lib/store";
-import type { SyllabusSource } from "@/lib/types";
+import type { CanvasCourse, CourseSyllabus, SyllabusSource } from "@/lib/types";
 import { Button, Card, INPUT } from "./ui";
 
 async function post<T>(path: string, body: object): Promise<T> {

@@ -4,11 +4,12 @@
 // separate check, re-checks every redirect, and drops the token as soon as a
 // redirect leaves the origin. It only sends GET, and it logs nothing.
 
+import "server-only";
 import { lookup as dnsLookup, type LookupAddress, type LookupOptions } from "node:dns";
 import { request as httpRequest, type IncomingMessage } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { BlockList, isIP } from "node:net";
-import { CanvasError, type CanvasGet, type CanvasResponse } from "./canvas";
+import { CanvasError, type CanvasGet, type CanvasResponse } from "./canvas.server";
 
 const MAX_REDIRECTS = 5;
 const DEFAULT_MAX_BYTES = 5 * 1024 * 1024;

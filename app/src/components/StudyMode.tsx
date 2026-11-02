@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { guideFor, markBlock, materialsFor, pickTopics, progressOf, recordAttempt, stageLine, type BlockStatus, type CoachBlock, type Material } from "@/lib/coach";
 import { isProblemCourse, type CoursePlan, type PlanBlock } from "@/lib/planner";
 import { buildLocalQuiz, joinSpeech, type ChoiceQuestion, type FreeQuestion, type QuizQuestion } from "@/lib/quiz";
-import type { QuizRequest } from "@/lib/quiz-llm";
+import type { QuizRequest } from "@/lib/quiz-request";
 import type { AppState } from "@/lib/state";
 import { update } from "@/lib/store";
 import { sourceFor, syllabusTopicNames, syllabusTopics, topicTitle, type Topic } from "@/lib/topics";

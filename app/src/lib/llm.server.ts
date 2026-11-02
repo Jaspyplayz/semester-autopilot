@@ -2,6 +2,7 @@
 // conversion into the same rows the deterministic parser produces. No network
 // here (that's /api/extract-llm), so all of this is unit tested.
 
+import "server-only";
 import { z } from "zod";
 import { formatWhen, isValidDate, parseTerm, splitIso, type When } from "./dates";
 import { mergeParses, slug, type CourseParse, type FinalEntry } from "./parse";

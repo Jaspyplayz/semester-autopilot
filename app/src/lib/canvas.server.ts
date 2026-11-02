@@ -1,13 +1,14 @@
 // Read-only Canvas client: list a student's courses and find each one's
 // syllabus. Quercus is the University of Toronto's Canvas; nothing here is
-// specific to it. Network access is passed in (canvas-http.ts on the server, a
+// specific to it. Network access is passed in (canvas-http.server.ts on the server, a
 // fake in tests), so this file holds the logic and can never reach anything by
 // itself. Error messages are fixed strings, so they can't carry a token.
 
+import "server-only";
 import { z } from "zod";
 import { htmlToText, linkedFiles, type LinkedFile } from "./html-text";
 import { findCourseCode } from "./parse";
-import type { CourseInfo, SyllabusSource } from "./types";
+import type { CanvasCourse, CanvasSource, CourseInfo, CourseSyllabus } from "./types";
 
 export type CanvasErrorKind =
   | "auth"
@@ -42,24 +43,6 @@ export interface CanvasConnection {
   baseUrl: string;
   token: string;
   get: CanvasGet;
-}
-
-export interface CanvasCourse {
-  id: string;
-  /** "CSC 207H1", in the same form the parser uses. */
-  code: string;
-  name: string;
-  term: string;
-}
-
-/** A source before the browser gives it an id. */
-export type CanvasSource = Omit<SyllabusSource, "id">;
-
-export interface CourseSyllabus {
-  course: CanvasCourse;
-  sources: CanvasSource[];
-  /** Things the student should know, such as a file that couldn't be read. */
-  notes: string[];
 }
 
 const MAX_PAGES = 10;

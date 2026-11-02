@@ -1,7 +1,7 @@
 import { createServer, type RequestListener, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { guardedGet, isPrivateAddress } from "./canvas-http";
+import { guardedGet, isPrivateAddress } from "./canvas-http.server";
 import { extractPdfText } from "./pdf";
 import { samplePdf } from "./test-helpers";
 

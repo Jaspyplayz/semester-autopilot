@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildLocalQuiz, joinSpeech, MAX_QUESTIONS, recallFirst, seededShuffle, type ChoiceQuestion, type QuizInput, type QuizQuestion } from "./quiz";
-import { QUIZ_SYSTEM_PROMPT, QuizRequestSchema, buildQuizUserMessage, llmToQuiz, type QuizOutput } from "./quiz-llm";
+import { QUIZ_SYSTEM_PROMPT, buildQuizUserMessage, llmToQuiz, type QuizOutput } from "./quiz-llm.server";
+import { QuizRequestSchema } from "./quiz-request";
 
 const unit = (n: number, name?: string) => ({ label: `Unit ${n}`, name, reading: `ch. ${n}` });
 const input = (over: Partial<QuizInput> = {}): QuizInput => ({ topics: [unit(1)], kind: "recall", problem: false, syllabusNames: [], seed: "s", ...over });

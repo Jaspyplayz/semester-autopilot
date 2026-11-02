@@ -2,8 +2,10 @@
 // the conversion into the same questions the templates produce. No network here
 // (that's /api/coach-quiz), so all of this is unit tested.
 
+import "server-only";
 import { z } from "zod";
 import { MAX_QUESTIONS, recallFirst, seededShuffle, type QuizQuestion } from "./quiz";
+import type { QuizRequest } from "./quiz-request";
 import { topicTitle, type Topic } from "./topics";
 
 export const QuizOutputSchema = z.object({
@@ -19,18 +21,6 @@ export const QuizOutputSchema = z.object({
   ),
 });
 export type QuizOutput = z.infer<typeof QuizOutputSchema>;
-
-export const QuizRequestSchema = z.object({
-  course: z.string().min(1).max(100),
-  task: z.string().max(1000),
-  problem: z.boolean(),
-  topics: z
-    .array(z.object({ label: z.string().max(200), name: z.string().max(300).optional(), reading: z.string().max(300).optional() }))
-    .min(1)
-    .max(12),
-  excerpts: z.array(z.string().max(500)).max(40),
-});
-export type QuizRequest = z.infer<typeof QuizRequestSchema>;
 
 export const QUIZ_SYSTEM_PROMPT = `You write short self-test questions for a university student who is studying right now.
 
