@@ -376,7 +376,7 @@ export async function fetchCourseSyllabus(
 
   // A home page is usually a welcome message, so its text only counts if it has
   // marks on it and no file did the job.
-  if (MARKS_RE.test(homeText) && sources.length === sourcesBeforeFiles) add("home page", homeText);
+  if (MARKS_RE.test(homeText) && sources.length === sourcesBeforeFiles) add("home page", homeText, "");
 
   if (!sources.length) note("no syllabus found on the course site. Upload or paste it instead");
   return { course, sources, notes };
