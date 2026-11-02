@@ -18,3 +18,4 @@ How every change to this repo gets built and reviewed. Claude Code does the buil
 
 - A new commit needs new reviews. A PASS only counts for the commit it reviewed.
 - Green CI isn't a reviewer PASS. You need both.
+- A `fix:` PR that adds no test fails CI ([`fix-needs-test.yml`](../.github/workflows/fix-needs-test.yml)). No label skips this, because an agent could apply it itself.

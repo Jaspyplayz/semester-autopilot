@@ -1,0 +1,37 @@
+name: Fix needs test
+
+# Fails a `fix:` PR that adds or modifies no test file. See
+# .github/scripts/fix-needs-test.sh for the rule.
+#
+# No path filters and no job-level `if`, so it reports on every PR. There is no
+# label to skip it, because an agent could apply that itself. pull_request gives
+# this a read-only token, and the title stays in env so the shell can't run it.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  fix-needs-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+      PR_TITLE: ${{ github.event.pull_request.title }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # Deleting a test or only renaming one doesn't count. A failed API call
+      # stops the job here, so it can't read as "no test needed".
+      - name: Check the changed files
+        run: |
+          gh api --paginate "repos/$GH_REPO/pulls/$PR/files" \
+            --jq '.[] | select(.status != "removed" and .changes > 0) | .filename' \
+            > "$RUNNER_TEMP/changed-files"
+          .github/scripts/fix-needs-test.sh < "$RUNNER_TEMP/changed-files"
