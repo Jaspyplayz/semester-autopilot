@@ -36,6 +36,7 @@ const readPdf = async () => "Midterm 25% Oct 16, 2026";
 const COURSE = "/api/v1/courses/7?include[]=syllabus_body&include[]=term";
 const SEARCH = (t: string) => `/api/v1/courses/7/files?search_term=${t}&per_page=20`;
 const MODULES = (t: string) => `/api/v1/courses/7/modules?include[]=items&search_term=${t}&per_page=50`;
+const FRONT_PAGE = "/api/v1/courses/7/front_page";
 const course = (body: string | null, over: object = {}) => ({
   id: 7,
   name: "CSC207H1 F LEC0101 20269:Software Design",
@@ -235,6 +236,167 @@ describe("fetchCourseSyllabus", () => {
     });
     const { sources } = await fetchCourseSyllabus(conn, "7", readPdf);
     expect(sources.map((s) => s.name)).toEqual(["CSC 207H1 · F26.pdf"]);
+  });
+
+  describe("course home page", () => {
+    const welcome = "<p>Welcome to the course! We meet on Mondays in the big lecture hall, and office hours are after class.</p>";
+    const longWelcome = `<p>${"Welcome to the course, and please read everything here. ".repeat(12)}</p>`;
+
+    it("reads a syllabus PDF linked from the front page when the syllabus page is empty", async () => {
+      const homePage = `${welcome}<a href="/courses/7/files/70?wrap=1">Course syllabus</a>`;
+      const { conn, calls } = fakeCanvas({
+        [COURSE]: reply(200, course(null)),
+        [FRONT_PAGE]: reply(200, { url: "home", title: "Home", body: homePage }),
+        "/api/v1/files/70": reply(200, file(70, "F26.pdf")),
+        "/files/70/download?verifier=abc": reply(200, PDF),
+      });
+      const { sources, notes } = await fetchCourseSyllabus(conn, "7", readPdf);
+      expect(sources.map((s) => s.name)).toEqual(["CSC 207H1 · F26.pdf"]);
+      expect(sources[0].text).toContain("Midterm");
+      expect(notes).toEqual([]);
+      expect(calls.find((c) => c.url.endsWith("/front_page"))?.bearer).toBe(TOKEN);
+      // A named link settles it, so there's no need to search.
+      expect(calls.some((c) => c.url.includes("search_term"))).toBe(false);
+    });
+
+    it("also looks there when the syllabus page only points somewhere else", async () => {
+      const { conn } = fakeCanvas({
+        [COURSE]: reply(200, course("<p>The syllabus is posted on the course home page, please look there.</p>")),
+        [FRONT_PAGE]: reply(200, { body: `<a href="/courses/7/files/71">Outline</a>` }),
+        "/api/v1/files/71": reply(200, file(71, "F26.pdf")),
+        "/files/71/download?verifier=abc": reply(200, PDF),
+      });
+      const { sources } = await fetchCourseSyllabus(conn, "7", readPdf);
+      expect(sources.map((s) => s.name)).toContain("CSC 207H1 · F26.pdf");
+    });
+
+    it("doesn't ask for the home page when the syllabus page is real", async () => {
+      const { conn, calls } = fakeCanvas({ [COURSE]: reply(200, course(LONG_BODY)) });
+      await fetchCourseSyllabus(conn, "7", readPdf);
+      expect(calls.some((c) => c.url.endsWith("/front_page"))).toBe(false);
+    });
+
+    it("takes the first linked file when a short home page just points at it", async () => {
+      const { conn } = fakeCanvas({
+        [COURSE]: reply(200, course(null)),
+        [FRONT_PAGE]: reply(200, { body: `<a href="/courses/7/files/72">Click here</a>` }),
+        "/api/v1/files/72": reply(200, file(72, "info.pdf")),
+        "/files/72/download?verifier=abc": reply(200, PDF),
+      });
+      const { sources } = await fetchCourseSyllabus(conn, "7", readPdf);
+      expect(sources.map((s) => s.name)).toEqual(["CSC 207H1 · info.pdf"]);
+    });
+
+    it("prefers a real syllabus file over whatever a short home page points at", async () => {
+      const { conn, calls } = fakeCanvas({
+        [COURSE]: reply(200, course(null)),
+        [FRONT_PAGE]: reply(200, { body: `<a href="/courses/7/files/73">Week 1 slides</a>` }),
+        "/api/v1/files/73": reply(200, file(73, "week1.pdf")),
+        [SEARCH("syllabus")]: reply(200, [file(1, "CSC207-Syllabus.pdf")]),
+        "/files/1/download?verifier=abc": reply(200, PDF),
+      });
+      const { sources } = await fetchCourseSyllabus(conn, "7", readPdf);
+      expect(sources.map((s) => s.name)).toEqual(["CSC 207H1 · CSC207-Syllabus.pdf"]);
+      expect(calls.some((c) => c.url.includes("/files/73/download"))).toBe(false);
+    });
+
+    it("ignores other files a long home page links to, even under a short syllabus page", async () => {
+      const homePage = `${longWelcome}<a href="/courses/7/files/74">Week 1 slides</a>`;
+      const { conn, calls } = fakeCanvas({
+        [COURSE]: reply(200, course("<p>Hi</p>")),
+        [FRONT_PAGE]: reply(200, { body: homePage }),
+        "/api/v1/files/74": reply(200, file(74, "week1.pdf")),
+      });
+      const { sources, notes } = await fetchCourseSyllabus(conn, "7", readPdf);
+      expect(sources).toEqual([]);
+      expect(notes.join(" ")).toMatch(/no syllabus found/);
+      expect(calls.some((c) => c.url.includes("/download"))).toBe(false);
+    });
+
+    it("finds a syllabus link past the lookup limit on a home page full of links", async () => {
+      const slides = Array.from({ length: 12 }, (_, i) => `<a href="/courses/7/files/${200 + i}">Week ${i + 1} slides</a>`);
+      const homePage = `${longWelcome}${slides.join("")}<a href="/courses/7/files/75">Course outline</a>`;
+      const routes: Record<string, CanvasResponse> = {
+        [COURSE]: reply(200, course(null)),
+        [FRONT_PAGE]: reply(200, { body: homePage }),
+        "/api/v1/files/75": reply(200, file(75, "F26.pdf")),
+        "/files/75/download?verifier=abc": reply(200, PDF),
+      };
+      for (let i = 0; i < 12; i++) routes[`/api/v1/files/${200 + i}`] = reply(200, file(200 + i, `week${i + 1}.pdf`));
+      const { conn } = fakeCanvas(routes);
+      const { sources } = await fetchCourseSyllabus(conn, "7", readPdf);
+      expect(sources.map((s) => s.name)).toEqual(["CSC 207H1 · F26.pdf"]);
+    });
+
+    it("reads the home page itself when the marks are written on it", async () => {
+      const { conn } = fakeCanvas({
+        [COURSE]: reply(200, course(null)),
+        [FRONT_PAGE]: reply(200, { body: LONG_BODY }),
+      });
+      const { sources, notes } = await fetchCourseSyllabus(conn, "7", readPdf);
+      expect(sources.map((s) => s.name)).toEqual(["CSC 207H1 · home page"]);
+      expect(sources[0].text).toContain("## Marking scheme");
+      expect(notes).toEqual([]);
+    });
+
+    it("prefers a syllabus file over marks written on the home page", async () => {
+      const { conn } = fakeCanvas({
+        [COURSE]: reply(200, course(null)),
+        [FRONT_PAGE]: reply(200, { body: `${LONG_BODY}<a href="/courses/7/files/76">Full syllabus</a>` }),
+        "/api/v1/files/76": reply(200, file(76, "F26.pdf")),
+        "/files/76/download?verifier=abc": reply(200, PDF),
+      });
+      const { sources } = await fetchCourseSyllabus(conn, "7", readPdf);
+      expect(sources.map((s) => s.name)).toEqual(["CSC 207H1 · F26.pdf"]);
+    });
+
+    it("falls back to the home page's marks when the syllabus file can't be read", async () => {
+      const { conn } = fakeCanvas({
+        [COURSE]: reply(200, course(null)),
+        [FRONT_PAGE]: reply(200, { body: `${LONG_BODY}<a href="/courses/7/files/77">Full syllabus</a>` }),
+        "/api/v1/files/77": reply(200, file(77, "F26.pdf")),
+        "/files/77/download?verifier=abc": reply(500, "boom"),
+      });
+      const { sources, notes } = await fetchCourseSyllabus(conn, "7", readPdf);
+      expect(sources.map((s) => s.name)).toEqual(["CSC 207H1 · home page"]);
+      expect(notes.join(" ")).toMatch(/couldn't download F26\.pdf/);
+    });
+
+    it("doesn't count a welcome message as a syllabus", async () => {
+      const { conn } = fakeCanvas({
+        [COURSE]: reply(200, course(null)),
+        [FRONT_PAGE]: reply(200, { body: welcome }),
+      });
+      const { sources, notes } = await fetchCourseSyllabus(conn, "7", readPdf);
+      expect(sources).toEqual([]);
+      expect(notes.join(" ")).toMatch(/no syllabus found/);
+    });
+
+    it("keeps looking when there's no front page, or it's hidden, without a note", async () => {
+      for (const missing of [reply(404, { message: "No front page has been set" }), reply(401, {}), reply(403, {})]) {
+        const { conn } = fakeCanvas({
+          [COURSE]: reply(200, course(null)),
+          [FRONT_PAGE]: missing,
+          [SEARCH("syllabus")]: reply(200, [file(1, "Syllabus.pdf")]),
+          "/files/1/download?verifier=abc": reply(200, PDF),
+        });
+        const { sources, notes } = await fetchCourseSyllabus(conn, "7", readPdf);
+        expect(sources.map((s) => s.name)).toEqual(["CSC 207H1 · Syllabus.pdf"]);
+        expect(notes).toEqual([]);
+      }
+    });
+
+    it("keeps looking, and says so, when the front page fails for another reason", async () => {
+      const { conn } = fakeCanvas({
+        [COURSE]: reply(200, course(null)),
+        [FRONT_PAGE]: reply(500, "boom"),
+        [SEARCH("syllabus")]: reply(200, [file(1, "Syllabus.pdf")]),
+        "/files/1/download?verifier=abc": reply(200, PDF),
+      });
+      const { sources, notes } = await fetchCourseSyllabus(conn, "7", readPdf);
+      expect(sources.map((s) => s.name)).toEqual(["CSC 207H1 · Syllabus.pdf"]);
+      expect(notes.join(" ")).toMatch(/may be missing/);
+    });
   });
 
   it("reads at most three files, newest first", async () => {
