@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 // Replays the bug paths from verification/autopilot-steps by pressing the real
 // buttons. Only adding a source and editing the table go straight to the store.
-// Each `it.fails` is a known bug: fixing it turns the test red, and then `it.fails`
+// Each `knownBug` is a known bug: fixing it turns the test red, and then `knownBug`
 // becomes `it`.
 
 import { readFileSync } from "node:fs";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, chai, describe, expect, it, vi } from "vitest";
 import { getSnapshot, resetAll, update } from "@/lib/store";
 import AutopilotApp from "./AutopilotApp";
 
@@ -52,6 +52,23 @@ async function startCanvasImport() {
   await press("Connect");
   await act(async () => document.querySelector<HTMLInputElement>("input[type=checkbox]")?.click());
   await press("Get deadlines");
+}
+
+/**
+ * Pins a bug. A throw in `setup`, such as a disabled or renamed button, fails the
+ * test. So does anything from `check` but a failed assertion, or `check` passing.
+ */
+function knownBug(name: string, setup: () => Promise<void>, check: () => void) {
+  it(name, async () => {
+    await setup();
+    try {
+      check();
+    } catch (err) {
+      if (err instanceof chai.AssertionError) return;
+      throw err;
+    }
+    throw new Error("This bug no longer reproduces: change its knownBug to it");
+  });
 }
 
 const canvasSyllabus = { sources: [{ name: "BIO110", kind: "canvas", text: SYLLABUS }], notes: [] };
@@ -101,49 +118,67 @@ describe("the step flow, with a read in flight", () => {
   });
 
   // BadTimeZoneStaysOnInput
-  it.fails("the course site import doesn't leave the input step with a bad time zone", async () => {
-    await type("#tz", "Not/AZone");
-    await startCanvasImport();
-    await land(canvasSyllabus);
-    expect(getSnapshot().step).toBe("input");
-  });
+  knownBug(
+    "the course site import doesn't leave the input step with a bad time zone",
+    async () => {
+      await type("#tz", "Not/AZone");
+      expect(getSnapshot().timezone).toBe("Not/AZone");
+      await startCanvasImport();
+      await land(canvasSyllabus);
+    },
+    () => expect(getSnapshot().step).toBe("input"),
+  );
 
   // LateReadKeepsWork, TLC's shortest path
-  it.fails("a course site import that lands late keeps the student's edited table", async () => {
-    await addSource();
-    await startCanvasImport();
-    await press("Read deadlines");
-    await act(async () => update((s) => (s.draft ? { ...s, draft: { ...s.draft, rows: [] } } : s)));
-    await land(canvasSyllabus);
-    expect(getSnapshot().draft?.rows).toEqual([]);
-  });
+  knownBug(
+    "a course site import that lands late keeps the student's edited table",
+    async () => {
+      await addSource();
+      await startCanvasImport();
+      await press("Read deadlines");
+      expect(getSnapshot().draft).not.toBeNull();
+      await act(async () => update((s) => (s.draft ? { ...s, draft: { ...s.draft, rows: [] } } : s)));
+      await land(canvasSyllabus);
+    },
+    () => expect(getSnapshot().draft?.rows).toEqual([]),
+  );
 
   // LateReadKeepsWork, the same rule through "Read with Claude instead"
-  it.fails("a Claude read that lands late keeps the student on Done with their plans", async () => {
-    await addSource();
-    await press("Read deadlines");
-    await press("Back");
-    await press("Read with Claude instead");
-    await press("Back to your table");
-    await press("Confirm deadlines");
-    await press("Confirm plans");
-    expect(getSnapshot().step).toBe("done");
-    await land({ extraction: { rows: [], undated: [], courses: [], warnings: [] } });
-    expect(getSnapshot().step).toBe("done");
-    expect(getSnapshot().plans).not.toBeNull();
-  });
+  knownBug(
+    "a Claude read that lands late keeps the student on Done with their plans",
+    async () => {
+      await addSource();
+      await press("Read deadlines");
+      await press("Back");
+      await press("Read with Claude instead");
+      await press("Back to your table");
+      await press("Confirm deadlines");
+      await press("Confirm plans");
+      expect(getSnapshot().step).toBe("done");
+      await land({ extraction: { rows: [], undated: [], courses: [], warnings: [] } });
+    },
+    () => {
+      expect(getSnapshot().step).toBe("done");
+      expect(getSnapshot().plans).not.toBeNull();
+    },
+  );
 
   // StartOverStaysCleared
-  it.fails("Start over stays cleared when a read lands after it", async () => {
-    await addSource();
-    await startCanvasImport();
-    await press("Read deadlines");
-    await press("Confirm deadlines");
-    await press("Confirm plans");
-    await press("Start over");
-    expect(getSnapshot().sources).toEqual([]);
-    await land(canvasSyllabus);
-    expect(getSnapshot().sources).toEqual([]);
-    expect(getSnapshot().draft).toBeNull();
-  });
+  knownBug(
+    "Start over stays cleared when a read lands after it",
+    async () => {
+      await addSource();
+      await startCanvasImport();
+      await press("Read deadlines");
+      await press("Confirm deadlines");
+      await press("Confirm plans");
+      await press("Start over");
+      expect(getSnapshot().sources).toEqual([]);
+      await land(canvasSyllabus);
+    },
+    () => {
+      expect(getSnapshot().sources).toEqual([]);
+      expect(getSnapshot().draft).toBeNull();
+    },
+  );
 });
