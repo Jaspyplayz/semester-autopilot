@@ -1,4 +1,4 @@
-// Test-only helpers for reading the sample school from the repo.
+// Test and script helpers for reading the sample school from the repo.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { Deadline } from "./types";
