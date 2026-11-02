@@ -1,91 +1,113 @@
 ---
 name: semester-autopilot
-description: Set up a student's semester. Downloads course files from their LMS (Canvas/Quercus, Moodle, Brightspace, Blackboard) into one folder per course, pulls test dates from syllabuses, writes study plans and a weekly schedule. Use when a student asks to set up, sync or plan their courses.
+description: Plan a student's semester. Reads their syllabuses (uploaded, or downloaded from Canvas/Quercus, Moodle, Brightspace or Blackboard), confirms every test and deadline with them, then writes one-screen study plans, a weekly schedule and a calendar file. Use when a student asks to set up, sync or plan their courses or study for upcoming tests.
 ---
 
 # Semester Autopilot
 
-Turns a student's course site into an organized folder on their computer, then into study plans they can follow. It works for any school and any learning management system (LMS). The worked example throughout is the University of Toronto, whose LMS is Quercus (a Canvas site at q.utoronto.ca).
+Turns a student's syllabuses into a confirmed list of deadlines, then into study plans they can follow day by day. It works for any school. The worked example throughout is the University of Toronto, whose course site is Quercus (a Canvas site at q.utoronto.ca).
 
-Read `references/lms-notes.md` before touching the browser, and the templates in `references/` before writing any file.
+Read the templates in `references/` before writing any file.
 
-## Inputs to collect first
+## Two modes
 
-Ask once, in one message, for whatever is missing. Don't ask for anything you can read off the LMS yourself.
+| | **Basic (default)** | **Power mode (optional)** |
+|---|---|---|
+| Student does | Uploads their syllabus PDFs into the chat | Installs Claude in Chrome, gives folder access, logs in to the course site |
+| Works in | Any claude.ai chat or Project, desktop or phone | Claude desktop app or Claude Code on their computer |
+| Setup time | 2 minutes | About 15 minutes (`SETUP.md`) |
+| Extra | Nothing | Every course file downloaded into one folder per course, plans point at exact files and pages |
+
+Always start in **Basic**. Offer Power mode once, after the first plans are delivered, and only if the student wants all their course files downloaded automatically. Never make Power mode a requirement for planning.
+
+## Inputs
+
+Ask once, in one message, for whatever is missing:
 
 | Input | Example |
 |---|---|
-| School and LMS URL | University of Toronto, https://q.utoronto.ca |
-| Term | Fall 2026 |
-| Course codes | CSC207, STA237, MAT235, PHL245 |
-| Root folder on their computer | `C:\Users\<name>\School` or `~/School` |
-| Preferences | e.g. "no calendar entries", max study hours a day, courses or quizzes they're skipping |
+| Syllabuses | PDF, Word, a pasted course outline, or a screenshot of the course site's syllabus page |
+| School and term | University of Toronto, Fall 2026 |
+| Preferences | Max study hours a day, days off, courses or quizzes they're skipping, "no calendar entries" |
 
-Save the answers (and every preference) to project memory or a notes file right away, so next session doesn't ask again. If a preference says "no Google Calendar entries", deliver plans as files only and don't offer calendar events again.
+Course codes, test dates and weights come from the syllabuses. Don't ask for anything you can read yourself.
+
+If memory is available, save the school, term, course list and every preference right away so the next conversation doesn't ask again. If a preference says "no calendar", deliver plans as files only and don't offer calendar files again.
 
 ## Hard rules
 
-- **Never type, store or ask for passwords or MFA codes.** The student logs in to the LMS, library and any publisher site themselves. Wait for them to say they're in.
-- **Only legitimate access.** Get files the student's enrolment already gives them. For textbooks, use the school library's licensed e-book access (SpringerLink, Wiley, O'Reilly, ProQuest Ebook Central, etc.) or the course's open textbook. Never use piracy sites, and if the library has no licensed copy, say so and stop.
+- **Never type, store or ask for passwords or MFA codes.** The student logs in to the course site, library and any publisher site themselves.
+- **Only legitimate access.** Use files the student's enrolment already gives them. For textbooks, use the school library's licensed e-book access or the course's open textbook. Never use piracy sites. If the library has no licensed copy, say so and stop.
 - **Don't delete or overwrite** anything in the student's folders without asking. Report gaps instead of guessing.
 - **Keep personal details out of shared files** (student numbers, grades, emails) unless the student asks.
+- **Nothing is planned on unconfirmed dates.** Step 2 always comes before Step 3.
 
-## Step 1. Check the prerequisites
+## Step 1. Read the syllabuses
 
-See `SETUP.md` for the student-facing version. You need:
+For each course, pull out:
 
-1. The **Claude in Chrome** extension installed and signed in to the same Claude account.
-2. A way to drive that Chrome. In a cloud or project thread, driving Chrome directly often fails; start a **Remote Control** Claude Code session on the student's computer and do the browser work through it. In a local Claude Code or desktop session, use Claude in Chrome directly.
-3. **Folder access** to the root folder (connected folder, or the local session's working directory).
-4. Chrome allowed to download multiple files from the LMS site (Chrome asks "This site is trying to download multiple files" the first time; the student clicks Allow, or adds the site under Settings > Privacy and security > Site settings > Automatic downloads).
+- Course code and name, lecture and tutorial times if given.
+- Marking scheme: every assessment and its weight.
+- Every dated assessment: date, time, room, what it covers, format (aid sheet, calculator, online).
+- Required textbook (title, edition, ISBN) and any open-textbook link.
 
-If one is missing, tell the student the exact step from `SETUP.md` and carry on with anything that doesn't need it.
+Mark anything not stated in the syllabus as **assumed** (e.g. "covers Weeks 4-8, assumed from the schedule") and anything missing as **TBA**. Never fill a gap silently.
 
-## Step 2. Create the folder layout
+## Step 2. Confirm the deadlines (always)
 
-Create this under the root folder (templates in `references/folder-layout.md`):
+Show the student **one merged table** of every dated assessment across all courses, soonest first, using `references/deadline-table-template.md`. Under it, list each assumed or TBA item as a short question, then ask exactly one closing question:
 
-```
-School/
-  README.md               explains the layout, for the student
-  _cache/
-    courses.md            one row per course: code, name, LMS link, file count, size, last download
-    <COURSE>.md           marking scheme and dated deadlines from the syllabus
-  <COURSE CODE>/          one folder per course, e.g. "CSC 207"
-    (mirrors the LMS module structure)
-```
+> Anything wrong, missing or that you're skipping?
 
-If the root folder already exists, read `_cache/courses.md` first. Next semester, add new course folders and leave old ones alone unless the student asks to archive them (suggest `School/_archive/<term>/`).
+Wait for the answer. Apply corrections, drop skipped items, and keep the confirmed table as the source of truth: save it as `deadlines.md` (in Power mode, also write `_cache/<COURSE>.md` per course). If the student only says "looks good", keep the assumed items marked as assumed.
 
-## Step 3. Download every linked course file
+## Step 3. Study plans
 
-For each course, in the LMS:
+Write **one plan per course for its next test**, in the one-screen format in `references/study-plan-template.md`. The format is strict because students read it on their phone:
 
-1. Open the course and find its numeric id in the URL (`/courses/123456`). Record the link in `_cache/courses.md`.
-2. Walk **Modules** first, then **Syllabus**, **Pages**, **Assignments** and **Announcements** for linked files. Try the **Files** tab too; it's often hidden by the instructor (a 403 or a missing tab), which is fine.
-3. Download each file into a subfolder named after its module. Keep the original file names; strip only characters the OS forbids.
-4. Externally hosted material (GitHub notes, instructor websites, YouTube, publisher platforms) is **left as links**: add them to the course row under "External links" rather than scraping.
-5. **Verify**: compare the count and total size on disk with the list you collected. Re-download anything that is 0 bytes, an HTML login page saved as `.pdf`, or missing.
-6. Update `_cache/courses.md`: file count, size, date of download, and a **Gaps** line (hidden Files tab, external links, anything that failed).
+- A two-line header: test, date, time, room, weight, coverage.
+- One section per study day: a checkbox per block, each with a time estimate and one concrete action.
+- Everything else (topic list, assumptions, file shorthand, what was not checked) goes in the collapsed **Details** section at the bottom.
 
-On a re-sync, only fetch files that are new or changed since the "last download" date.
+Fit the plans around each other: weight hours by what each test is worth and how soon it is, give the day before a bigger test to that course, leave the day after a test light, and stay under the student's daily maximum (default about 6 hours on a class day).
 
-## Step 4. Deadlines, then study plans
+In Basic mode, point at what the student has: syllabus readings, textbook chapters, lecture weeks ("Week 6 slides on the course site"). In Power mode, point at the downloaded file by path and page.
 
-1. From each syllabus and the LMS calendar/assignments page, write `_cache/<COURSE>.md`: the marking scheme and every dated test, quiz and assignment, with time, room and what it covers. Mark anything inferred (e.g. "coverage assumed Weeks 4-8") as **assumed**.
-2. Show the student the merged list of upcoming deadlines (next 2-4 weeks) and ask which ones they're skipping or worried about.
-3. Write **one study plan per course** for its next test, using `references/study-plan-template.md`. Fit them around each other: weight hours by what each test is worth and how soon it is, stop studying a course the day before another, bigger test, and leave the day after a test light. Point at the actual downloaded files by path and page.
-4. Write a **combined weekly schedule** with `references/weekly-schedule-template.md`: hours per course per day, fixed events, overloaded days, and what to cut first.
-5. Save plans to the course folder (and the project's shared files, if there is one). Don't write events into the student's calendar unless they explicitly ask. If they want the plan in a calendar, offer an importable `.ics` file (one event per study block, their time zone, meant for a separate calendar they can delete in one go) and label the start times as guesses around their fixed classes.
+## Step 4. Weekly schedule and calendar
+
+1. Write a **combined weekly schedule** with `references/weekly-schedule-template.md`: hours per course per day, fixed events, overloaded days, and what to cut first.
+2. Offer an importable `.ics` file: one event per study block, the student's time zone, meant for a separate calendar they can delete in one go. Label the start times as guesses around their classes. Don't write into the student's calendar directly unless they explicitly ask.
 
 ## Step 5. Textbooks through the library
 
-For each required textbook in a syllabus: search the school library catalogue by ISBN (syllabus links to the library are often dead). If there's a licensed e-book, have the student log in through the library, download the PDF or chapters into `<COURSE>/Textbook/`, and note the edition and source in `_cache/courses.md`. If not, list it under Gaps with the library link.
+For each required textbook: search the school library catalogue by ISBN (syllabus links to the library are often dead). If there's a licensed e-book, give the student the library link to log in and download it (in Power mode, save it to `<COURSE>/Textbook/`). If not, list it as a gap with the library link.
 
-## Step 6. Suggest how to keep working
+## Where the files go
 
-Suggest one ongoing thread or conversation per course ("Study for CSC207"), so course questions keep their own context, plus one general thread for syncing and the weekly schedule. Recommend a re-sync once a week or after a big announcement.
+- **Basic mode in claude.ai:** create the files (`deadlines.md`, one plan per course, `weekly-schedule.md`, the `.ics`) as downloads. Tell the student to keep them, or add them to the Project's files, so the next conversation can read them.
+- **With folder access (Power mode):** save into the layout in `references/folder-layout.md`: plans in each course folder, `deadlines.md` and the weekly schedule at the root.
+
+## Power mode: download every course file
+
+Only when the student asked for it and has finished the Power mode steps in `SETUP.md`. Read `references/lms-notes.md` before touching the browser.
+
+Prerequisites: Claude in Chrome signed in to the same account; a way to drive that Chrome (in a cloud or project thread, start a **Remote Control** session on the student's computer; in a local session, use Claude in Chrome directly); folder access to the root folder; Chrome allowed to download multiple files from the course site. If one is missing, give the exact step from `SETUP.md` and carry on with anything that doesn't need it.
+
+1. **Folder layout.** Create the layout in `references/folder-layout.md`. If the root folder already exists, read `_cache/courses.md` first. Next semester, add new course folders and leave old ones alone (suggest `School/_archive/<term>/` if they want to archive).
+2. **Find each course.** Open it and note its numeric id (`/courses/123456`). Record the link in `_cache/courses.md`.
+3. **Collect files.** Walk **Modules** first, then **Syllabus**, **Pages**, **Assignments** and **Announcements**. Try the **Files** tab too; it's often hidden by the instructor (a 403 or a missing tab), which is fine.
+4. **Download** each file into a subfolder named after its module. Keep original file names; strip only characters the OS forbids.
+5. **Leave external material as links** (GitHub notes, instructor websites, YouTube, publisher platforms) under "External links" in `_cache/courses.md`.
+6. **Verify** count and total size against your list. Re-download anything that is 0 bytes, an HTML login page saved as `.pdf`, or missing.
+7. **Record** file count, size, download date and a **Gaps** line per course in `_cache/courses.md`.
+8. Any syllabus found here goes through Steps 1 and 2 like an uploaded one. Re-point the plans at the downloaded files.
+
+On a re-sync, only fetch files that are new or changed since the "last download" date.
+
+## Keep it going
+
+Suggest one ongoing chat or thread per course ("Study for CSC207") so course questions keep their own context, plus one general one for deadlines and the weekly schedule. Suggest checking in once a week, or after a big announcement, to update dates and rebuild the week.
 
 ## What to report back
 
-Keep the reply short: courses set up, files downloaded (count and size), gaps, the next 3 deadlines, and links to the plans. Put anything long in a file.
+Keep the reply short: the confirmed deadline table (or a link to it), the next 3 deadlines, links to the plans and the calendar file, and any gaps. Put anything long in a file.

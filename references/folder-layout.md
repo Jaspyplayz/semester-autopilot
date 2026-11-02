@@ -7,6 +7,8 @@
 
 One folder per course. Files are downloaded from <LMS name> (<LMS URL>) and organized by module.
 
+- `deadlines.md`: every confirmed test and deadline, soonest first.
+- `weekly-schedule.md`: this week's study hours per course.
 - `_cache/courses.md`: every course with its link, file count and last download date. Check "Gaps" for anything that wasn't downloaded.
 - `_cache/<COURSE>.md`: marking scheme and deadlines for that course.
 - Study plans are saved in each course folder as `<test>-study-plan.md`.
