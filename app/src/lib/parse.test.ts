@@ -70,12 +70,7 @@ describe("sample syllabuses (examples/sample-university)", () => {
     const ours = tableRows(markdownTable(confirmed, TERM, TODAY));
     const expected = tableRows(expectedDeadlines());
 
-    // Documented difference: the syllabus says "Lab reports (4) 20%". The
-    // parser splits that into 5% each and marks it "(assumed)" because the
-    // syllabus doesn't say the reports are weighted equally. The expected
-    // output (written after the student confirmed) shows plain "5%".
-    const normalised = ours.map((cells) => cells.map((c) => c.replace("5% (assumed)", "5%")));
-    expect(normalised).toEqual(expected);
+    expect(ours).toEqual(expected);
 
     // And the only assumed worth values are the four lab reports.
     expect(confirmed.filter((r) => /assumed/.test(r.worth)).map((r) => r.what)).toEqual([
