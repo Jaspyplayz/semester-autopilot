@@ -1,8 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
-import { LLM_MODEL } from "@/lib/llm";
+import { LLM_MODEL } from "@/lib/llm.server";
 import { isSameOrigin } from "@/lib/origin";
-import { QUIZ_SYSTEM_PROMPT, QuizOutputSchema, QuizRequestSchema, buildQuizUserMessage, llmToQuiz } from "@/lib/quiz-llm";
+import { QUIZ_SYSTEM_PROMPT, QuizOutputSchema, buildQuizUserMessage, llmToQuiz } from "@/lib/quiz-llm.server";
+import { QuizRequestSchema } from "@/lib/quiz-request";
 
 // Optional: only works when ANTHROPIC_API_KEY is set, and Coach's templates work
 // without it. Topic names and a few syllabus lines go to the Anthropic API for this

@@ -6,7 +6,7 @@ import {
   type CanvasConnection,
   type CanvasGet,
   type CanvasResponse,
-} from "./canvas";
+} from "./canvas.server";
 
 const BASE = "https://canvas.test";
 const TOKEN = "secret-token";

@@ -8,7 +8,7 @@ import {
   MAX_LLM_CHARS,
   buildLlmUserMessage,
   llmToExtraction,
-} from "@/lib/llm";
+} from "@/lib/llm.server";
 import { isSameOrigin } from "@/lib/origin";
 
 // Optional: only works when ANTHROPIC_API_KEY is set. Syllabus text is sent to

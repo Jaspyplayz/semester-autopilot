@@ -46,3 +46,21 @@ export interface SyllabusSource {
   /** Where to open it on the course site. The student's own login gets them in. */
   url?: string;
 }
+
+export interface CanvasCourse {
+  id: string;
+  /** "CSC 207H1", in the same form the parser uses. */
+  code: string;
+  name: string;
+  term: string;
+}
+
+/** A source before the browser gives it an id. */
+export type CanvasSource = Omit<SyllabusSource, "id">;
+
+export interface CourseSyllabus {
+  course: CanvasCourse;
+  sources: CanvasSource[];
+  /** Things the student should know, such as a file that couldn't be read. */
+  notes: string[];
+}

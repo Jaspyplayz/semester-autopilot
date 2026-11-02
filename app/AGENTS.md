@@ -1,3 +1,6 @@
+The `.server.ts` suffix marks code that holds Canvas tokens or LLM code. Only `route.ts` files and other `.server.ts` files may import it, and lint enforces that.
+If client code needs a type or helper from one, move that part to a plain module.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know

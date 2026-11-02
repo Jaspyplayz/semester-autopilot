@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { fetchCourseSyllabus } from "@/lib/canvas";
-import { canvasRoute } from "@/lib/canvas-route";
+import { fetchCourseSyllabus } from "@/lib/canvas.server";
+import { canvasRoute } from "@/lib/canvas-route.server";
 import { extractPdfText } from "@/lib/pdf";
 
 export const maxDuration = 60;

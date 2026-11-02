@@ -107,15 +107,15 @@ src/lib/                Pure logic, unit tested
   schedule.ts           The weekly schedule, derived from the plans
   coach.ts              Today, the week's board, topic progression and materials
   quiz.ts               Built-in quiz questions
-  quiz-llm.ts           Optional Claude questions: schema, prompt and conversion
+  quiz-llm.server.ts    Optional Claude questions: schema, prompt and conversion
   markdown.ts, ics.ts   Exports
-  canvas.ts             Canvas client: courses, finding and reading syllabuses. Network passed in
-  canvas-http.ts        The server's only way to reach a course site, with the SSRF and token rules
-  canvas-route.ts       What the /api/canvas routes share
+  canvas.server.ts      Canvas client: courses, finding and reading syllabuses. Network passed in
+  canvas-http.server.ts The server's only way to reach a course site, with the SSRF and token rules
+  canvas-route.server.ts What the /api/canvas routes share
   canvas-session.ts     The token, in this tab's sessionStorage
   canvas-url.ts         Cleaning up the course site address
   html-text.ts          Syllabus page HTML to parser text, and its file links
-  llm.ts                LLM schema, prompt and conversion to rows
+  llm.server.ts         LLM schema, prompt and conversion to rows
   pdf.ts                PDF text extraction
   state.ts              App state, its transitions, and the StateRepository interface
   store.ts              Browser store, saving through localStorage

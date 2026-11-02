@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { listCourses } from "@/lib/canvas";
-import { canvasRoute } from "@/lib/canvas-route";
+import { listCourses } from "@/lib/canvas.server";
+import { canvasRoute } from "@/lib/canvas-route.server";
 
 export const maxDuration = 60;
 

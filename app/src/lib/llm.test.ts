@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLlmUserMessage, llmToExtraction, LlmOutputSchema, type LlmOutput } from "./llm";
+import { buildLlmUserMessage, llmToExtraction, LlmOutputSchema, type LlmOutput } from "./llm.server";
 
 type Item = LlmOutput["courses"][number]["items"][number];
 

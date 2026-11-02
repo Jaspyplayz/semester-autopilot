@@ -3,9 +3,10 @@
 // errors are answered with a fixed message and not rethrown, because Next would
 // log them.
 
+import "server-only";
 import { z } from "zod";
-import { CanvasError, type CanvasConnection, type CanvasErrorKind } from "./canvas";
-import { allowsPrivateHosts, canvasGet } from "./canvas-http";
+import { CanvasError, type CanvasConnection, type CanvasErrorKind } from "./canvas.server";
+import { allowsPrivateHosts, canvasGet } from "./canvas-http.server";
 import { normalizeBaseUrl } from "./canvas-url";
 import { isSameOrigin } from "./origin";
 
