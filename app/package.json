@@ -10,6 +10,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "prove": "tsx scripts/prove-e2e.ts",
+    "prove:ui": "tsx scripts/prove-ui.ts",
     "mock-canvas": "tsx scripts/mock-canvas.ts",
     "check-fixtures": "tsx scripts/check-fixtures.ts"
   },
@@ -29,6 +30,7 @@
     "diff": "^9.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.4",
+    "playwright": "^1.64.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",
