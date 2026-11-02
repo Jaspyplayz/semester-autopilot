@@ -1,0 +1,24 @@
+name: Verification
+
+# No path filters and no job-level `if`, like ci.yml: the model has to be
+# rechecked on every PR, because the code it describes can change anywhere.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tlc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      # check.sh pins tla2tools.jar and verifies its checksum.
+      - run: verification/autopilot-steps/check.sh
