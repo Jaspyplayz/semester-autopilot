@@ -29,6 +29,7 @@ Full steps, including Power mode, are in [SETUP.md](SETUP.md). Want to try it fi
 - `app/`: the web app (Next.js).
 - `docs/merge-safety.md`: how PRs get merged here.
 - `docs/study-methods.md`: evidence note on study methods for the planner and Coach.
+- `.claude/skills/verify-semester-autopilot/`: how agents launch the app, drive it like a student and capture proof.
 
 ## Web app
 [`app/`](app/) is an early web version: connect Quercus or any Canvas site with an access token (or upload your syllabuses instead), confirm the deadline table, then check a study plan per course and a combined weekly schedule. Download them as markdown, along with `deadlines.md` and an `.ics` file. It needs no account or Anthropic API key. Your syllabuses, deadlines and plans stay in your browser, and your token stays in that tab, passing through the app's server only to reach your course site. The app builds plans with fixed rules from your confirmed dates, so the skill can still point at more exact readings. To run or deploy it, see [`app/README.md`](app/README.md).
