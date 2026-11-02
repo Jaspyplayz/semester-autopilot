@@ -31,6 +31,6 @@ Full steps, including Power mode, are in [SETUP.md](SETUP.md). Want to try it fi
 Claude never asks for or types your password. You log in to your course site and library yourself. Textbooks come only from your library's licensed access or official open textbooks. Nothing in your folders is deleted or overwritten without your OK.
 
 ## License and credit
-Licensed under [CC BY 4.0](LICENSE). You can share and adapt it, including commercially, as long as you credit the author. Suggested credit:
+Licensed under [CC BY-NC 4.0](LICENSE). It's free for students and anyone else to use, share and adapt, as long as you credit the author and don't use it commercially. For commercial use, contact the author through GitHub. Suggested credit:
 
-> "Semester Autopilot" by Jaspyplayz (https://github.com/Jaspyplayz/semester-autopilot), licensed under CC BY 4.0.
+> "Semester Autopilot" by Jaspyplayz (https://github.com/Jaspyplayz/semester-autopilot), licensed under CC BY-NC 4.0.
