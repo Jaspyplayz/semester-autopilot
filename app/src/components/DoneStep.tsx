@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { buildIcs } from "@/lib/ics";
-import { deadlinesMarkdown, plainText, undatedLine } from "@/lib/markdown";
-import type { AppState, Confirmed } from "@/lib/state";
+import { deadlinesMarkdown, planFilename, plainText, studyPlanMarkdown, undatedLine, weeklyScheduleMarkdown } from "@/lib/markdown";
+import { weeklySchedule } from "@/lib/schedule";
+import { rebuildPlans, type AppState, type Confirmed } from "@/lib/state";
 import { resetAll, update } from "@/lib/store";
 import { isNextSevenDays, sortRows, termOf } from "@/lib/table";
 import { Button, Card, COLUMNS } from "./ui";
@@ -33,6 +34,7 @@ export function DoneStep({ state, confirmed, today }: { state: AppState; confirm
   });
   const calendar = buildIcs(rows, { term, timezone: state.timezone });
   const nd = undatedLine(confirmed.undated);
+  const plans = state.plans?.confirmedOn ? state.plans : null;
 
   async function copy(text: string, label: string) {
     try {
@@ -116,15 +118,51 @@ export function DoneStep({ state, confirmed, today }: { state: AppState; confirm
         </p>
       </Card>
 
-      <p className="mb-4 text-sm text-stone-600">
-        Study plans and the weekly schedule aren&apos;t in the web app yet. Keep deadlines.md and give it to the Claude
-        skill to get them.
-      </p>
+      {plans && plans.plans.length > 0 && (
+        <Card title="Your study plans">
+          <div className="flex flex-wrap gap-3">
+            {plans.plans.map((p) => (
+              <Button
+                key={p.id}
+                variant="primary"
+                onClick={() => download(planFilename(p), studyPlanMarkdown(p), "text/markdown;charset=utf-8")}
+              >
+                Download {p.course} plan
+              </Button>
+            ))}
+            <Button
+              variant="primary"
+              onClick={() =>
+                download(
+                  "weekly-schedule.md",
+                  weeklyScheduleMarkdown(weeklySchedule(plans, rows, term, today), state.timezone),
+                  "text/markdown;charset=utf-8",
+                )
+              }
+            >
+              Download weekly-schedule.md
+            </Button>
+          </div>
+          <p className="mt-3 text-sm text-stone-600">
+            Built on your confirmed deadlines. After each test, come back and rebuild to plan the next one.
+          </p>
+        </Card>
+      )}
       <div className="flex flex-wrap gap-3">
+        {plans ? (
+          <Button onClick={() => update((s) => ({ ...s, step: "plans" }))}>Edit plans</Button>
+        ) : (
+          <Button
+            variant="primary"
+            onClick={() => update((s) => ({ ...(s.plans ? s : rebuildPlans(s, today)), step: "plans" }))}
+          >
+            Make my study plans
+          </Button>
+        )}
         <Button onClick={() => update((s) => ({ ...s, step: "confirm" }))}>Edit deadlines</Button>
         <Button
           onClick={() => {
-            if (window.confirm("Clear your syllabuses and deadlines from this browser?")) resetAll();
+            if (window.confirm("Clear your syllabuses, deadlines and plans from this browser?")) resetAll();
           }}
         >
           Start over

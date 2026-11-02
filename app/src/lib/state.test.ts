@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { applyCanvasImport, confirmDraft, defaultState, reviveState, startDraft, visibleRows } from "./state";
+import { changeBlock } from "./planner";
+import {
+  applyCanvasImport,
+  confirmDraft,
+  confirmPlans,
+  defaultState,
+  rebuildPlans,
+  reviveState,
+  startDraft,
+  visibleRows,
+  wouldLosePlanEdits,
+  type AppState,
+} from "./state";
 import type { Deadline, Extraction, SyllabusSource } from "./types";
 
 function row(over: Partial<Deadline>): Deadline {
@@ -39,6 +51,76 @@ describe("reviveState", () => {
   });
 });
 
+describe("study plans in the flow", () => {
+  const start = startDraft(defaultState(), extraction, "rules");
+  const planned = confirmDraft(start, TODAY);
+  const moved = (s: AppState): AppState => ({
+    ...s,
+    draft: { ...s.draft!, rows: s.draft!.rows.map((r) => (r.what === "Soon" ? { ...r, when: "Mon Oct 12" } : r)) },
+  });
+  const edited = (s: AppState): AppState => {
+    const plan = s.plans!.plans[0];
+    const day = plan.days[0];
+    return { ...s, plans: changeBlock(s.plans!, plan.id, day.date, day.blocks[0].id, { action: "My own block" }) };
+  };
+
+  it("builds plans from the confirmed rows when deadlines are confirmed", () => {
+    expect(planned.step).toBe("plans");
+    expect(planned.plans!.plans.map((p) => p.what)).toEqual(["Soon"]);
+    expect(planned.plans).toMatchObject({ builtOn: TODAY, edited: false, confirmedOn: null });
+  });
+
+  it("confirming plans goes on to the downloads", () => {
+    const done = confirmPlans(planned, TODAY);
+    expect(done.step).toBe("done");
+    expect(done.plans!.confirmedOn).toBe(TODAY);
+  });
+
+  it("keeps plan edits when the deadlines come back unchanged", () => {
+    const changed = confirmPlans(edited(planned), TODAY);
+    expect(wouldLosePlanEdits(changed, TODAY)).toBe(false);
+    const again = confirmDraft(changed, TODAY);
+    expect(again.plans!.plans[0].days[0].blocks[0].action).toBe("My own block");
+    expect(again.plans!.confirmedOn).toBeNull();
+    expect(again.step).toBe("plans");
+  });
+
+  it("warns before changed deadlines replace edited plans", () => {
+    const changed = moved(edited(planned));
+    expect(wouldLosePlanEdits(changed, TODAY)).toBe(true);
+    expect(wouldLosePlanEdits(moved(planned), TODAY)).toBe(false);
+    const rebuilt = confirmDraft(changed, TODAY);
+    expect(rebuilt.plans!.edited).toBe(false);
+    expect(rebuilt.plans!.plans[0].date).toBe("2026-10-12");
+  });
+
+  it("rebuilds with new settings and remembers them", () => {
+    const off = rebuildPlans(planned, TODAY, { maxHoursPerDay: 3, daysOff: [1] });
+    expect(off.planSettings).toEqual({ maxHoursPerDay: 3, daysOff: [1] });
+    expect(off.plans!.settings).toEqual({ maxHoursPerDay: 3, daysOff: [1] });
+    expect(off.plans!.plans[0].days.some((d) => d.date === TODAY)).toBe(false);
+  });
+
+  it("drops plans when a new syllabus starts over", () => {
+    expect(startDraft(planned, extraction, "rules").plans).toBeNull();
+  });
+
+  it("round-trips through storage and resumes on the plans step", () => {
+    expect(reviveState(JSON.parse(JSON.stringify(planned)))).toEqual(planned);
+    expect(reviveState({ ...planned, plans: null })?.step).toBe("input");
+  });
+
+  it("loads state saved before plans existed, on the done step with no plans", () => {
+    const old: Partial<AppState> = { ...confirmPlans(planned, TODAY) };
+    delete old.plans;
+    delete old.planSettings;
+    const revived = reviveState(JSON.parse(JSON.stringify(old)))!;
+    expect(revived.step).toBe("done");
+    expect(revived.plans).toBeNull();
+    expect(revived.planSettings).toEqual({ maxHoursPerDay: 6, daysOff: [] });
+  });
+});
+
 describe("reviveState with a bad time zone", () => {
   it("sends the student back to the input step to fix it", () => {
     const s = startDraft(defaultState(), extraction, "rules");
@@ -59,7 +141,7 @@ describe("confirmDraft", () => {
     let s = startDraft(defaultState(), extraction, "rules");
     s = { ...s, draft: { ...s.draft!, rows: s.draft!.rows.map((r) => (r.what === "Later" ? { ...r, when: "oct 30 5pm" } : r)) } };
     const done = confirmDraft(s, TODAY);
-    expect(done.step).toBe("done");
+    expect(done.step).toBe("plans");
     expect(done.confirmed).toMatchObject({ confirmedOn: TODAY, undated: ["ABC 100 labs (5%)"] });
     expect(done.confirmed!.rows.map((r) => [r.what, r.when])).toEqual([
       ["Soon", "Fri Oct 9"],

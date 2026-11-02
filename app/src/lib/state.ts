@@ -6,10 +6,11 @@
 import { DEFAULT_CANVAS_URL } from "./canvas-url";
 import { isValidTimeZone } from "./dates";
 import { parseSyllabuses } from "./parse";
+import { DEFAULT_PLAN_SETTINGS, buildPlans, deadlinesBasis, type PlanSet, type PlanSettings } from "./planner";
 import { isPast, normalizeWhen, sortRows, termOf, whatYouConfirmed } from "./table";
 import type { CourseInfo, Deadline, Extraction, SyllabusSource } from "./types";
 
-export type Step = "input" | "confirm" | "done";
+export type Step = "input" | "confirm" | "plans" | "done";
 
 export interface Draft {
   rows: Deadline[];
@@ -39,6 +40,9 @@ export interface AppState {
   draft: Draft | null;
   showPast: boolean;
   confirmed: Confirmed | null;
+  /** Study plans for the confirmed deadlines. Confirmed once plans.confirmedOn is set. */
+  plans: PlanSet | null;
+  planSettings: PlanSettings;
   /** The course site's address. Its token is kept apart from this: see canvas-session.ts. */
   canvasBaseUrl: string;
 }
@@ -61,6 +65,8 @@ export function defaultState(): AppState {
     draft: null,
     showPast: false,
     confirmed: null,
+    plans: null,
+    planSettings: DEFAULT_PLAN_SETTINGS,
     canvasBaseUrl: DEFAULT_CANVAS_URL,
   };
 }
@@ -74,7 +80,13 @@ export function reviveState(raw: unknown): AppState | null {
   // A bad time zone can only be fixed on the input step (and would break .ics).
   const usable = isValidTimeZone(s.timezone);
   const step: Step =
-    usable && s.step === "confirm" && s.draft ? "confirm" : usable && s.step === "done" && s.confirmed ? "done" : "input";
+    usable && s.step === "confirm" && s.draft
+      ? "confirm"
+      : usable && s.step === "plans" && s.plans && s.confirmed
+        ? "plans"
+        : usable && s.step === "done" && s.confirmed
+          ? "done"
+          : "input";
   return { ...defaultState(), ...s, step };
 }
 
@@ -84,6 +96,7 @@ export function startDraft(state: AppState, extraction: Extraction, method: Draf
     step: "confirm",
     showPast: false,
     confirmed: null,
+    plans: null,
     draft: {
       rows: extraction.rows,
       original: extraction.rows,
@@ -122,17 +135,23 @@ export function visibleRows(rows: Deadline[], state: Pick<AppState, "showPast" |
   return rows.filter((r) => !isPast(r, term, today));
 }
 
-export function confirmDraft(state: AppState, today: string): AppState {
-  if (!state.draft) return state;
+function confirmedRows(state: AppState, draft: Draft, today: string): Deadline[] {
   const term = termOf(state.term, today);
-  const rows = sortRows(visibleRows(state.draft.rows, state, today), term).map((r) => ({
+  return sortRows(visibleRows(draft.rows, state, today), term).map((r) => ({
     ...r,
     when: normalizeWhen(r.when, term),
   }));
+}
+
+/** Confirming goes on to the plans. Plans for the same deadlines keep the student's edits. */
+export function confirmDraft(state: AppState, today: string): AppState {
+  if (!state.draft) return state;
+  const term = termOf(state.term, today);
+  const rows = confirmedRows(state, state.draft, today);
   const original = visibleRows(state.draft.original, state, today);
-  return {
+  const next: AppState = {
     ...state,
-    step: "done",
+    step: "plans",
     confirmed: {
       rows,
       undated: state.draft.undated,
@@ -140,4 +159,36 @@ export function confirmDraft(state: AppState, today: string): AppState {
       confirmedOn: today,
     },
   };
+  if (state.plans?.basis === deadlinesBasis(rows)) {
+    return { ...next, plans: { ...state.plans, confirmedOn: null } };
+  }
+  return rebuildPlans(next, today);
+}
+
+/** True if confirming this draft would replace plans the student has edited. */
+export function wouldLosePlanEdits(state: AppState, today: string): boolean {
+  if (!state.draft || !state.plans?.edited) return false;
+  return state.plans.basis !== deadlinesBasis(confirmedRows(state, state.draft, today));
+}
+
+/** A fresh plan from the confirmed deadlines, starting today. */
+export function rebuildPlans(state: AppState, today: string, settings: PlanSettings = state.planSettings): AppState {
+  if (!state.confirmed) return state;
+  return {
+    ...state,
+    planSettings: settings,
+    plans: buildPlans({
+      rows: state.confirmed.rows,
+      courses: state.draft?.courses ?? [],
+      sources: state.sources,
+      term: termOf(state.term, today),
+      today,
+      settings,
+    }),
+  };
+}
+
+export function confirmPlans(state: AppState, today: string): AppState {
+  if (!state.plans) return state;
+  return { ...state, step: "done", plans: { ...state.plans, confirmedOn: today } };
 }
