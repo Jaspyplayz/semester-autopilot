@@ -15,16 +15,16 @@ Run every command from the repo root. Node 24 and Linux or macOS are assumed.
 .claude/skills/verify-semester-autopilot/scripts/control.mjs launch
 ```
 
-This installs dependencies if they're missing, runs `npm run build`, and starts two processes:
+This runs `npm ci` if a dependency is missing or isn't the version in `package-lock.json`, runs `npm run build`, and starts two processes:
 
-- The app, with `next start`, at `http://127.0.0.1:3100`. `CANVAS_ALLOW_PRIVATE_HOSTS=1` lets it reach the mock site, and `ANTHROPIC_API_KEY` is blank so a key in `.env.local` isn't spent.
+- The app, with `next start`, at `http://127.0.0.1:3100`. `CANVAS_ALLOW_PRIVATE_HOSTS=1` lets it reach the mock site. It listens on loopback only, because that flag lets anyone who reaches the port make it call private addresses. `ANTHROPIC_API_KEY` is blank so a key in `.env.local` isn't spent.
 - Mock Canvas (`app/scripts/mock-canvas.ts`) at `http://127.0.0.1:4110`, serving the three sample courses. The token is `mock-token-not-a-secret`.
 
 It's ready when it prints a line starting `ready app=`. It refuses a port it didn't start. Use `VERIFY_PORT` and `VERIFY_MOCK_PORT` to pick others. Set them on `launch` only: the other commands read the ports from the run file.
 
 One checkout runs one instance, because each build has one `.next`. To run side by side, use another worktree and other ports. Each browser journey gets a new profile, so journeys never share state.
 
-The build is what gets driven. Change `app/src` and you have to run `cleanup` and `launch` again. Doctor fails until you do.
+The build is what gets driven. Change `app/src` or commit, and you have to run `cleanup` and `launch` again. Until you do, doctor fails, and `drive.mjs` and `prove` refuse to run.
 
 ## Doctor
 
@@ -36,6 +36,8 @@ Run this first, and whenever anything looks off. It only reads. Each line starts
 
 - Both processes are running, and the port serves Semester Autopilot.
 - The build came from the current commit, and nothing in `app/src` is newer than the build.
+- `node_modules` matches `package-lock.json` for every direct dependency.
+- The app and mock Canvas don't answer on any of this machine's non-loopback addresses.
 - Mock Canvas answers, and the app can reach it. A wrong token must get 401.
 - No Anthropic key is set in this instance.
 - The evidence folder is gitignored.
@@ -61,7 +63,7 @@ It finds Chrome through `channel: "chrome"`. Without Chrome installed, run `npx 
 .claude/skills/verify-semester-autopilot/scripts/control.mjs prove
 ```
 
-It starts its own mock Canvas on random ports, and goes from a token to courses, syllabus files and an `.ics`, then does the same from PDF upload. It's the only check of three security rules: another site's page gets 403, a token never reaches the file CDN after a redirect, and a non-numeric course id gets 400. No response may contain the token.
+It starts its own mock Canvas on random ports, and goes from a token to courses, syllabus files and an `.ics`, then does the same from PDF upload. It checks three security rules against the running app: another site's page gets 403, a token never reaches the file CDN after a redirect, and a non-numeric course id gets 400. No response may contain the token.
 
 `prove` never opens a browser. It calls the parser and `.ics` builder directly, so a pass doesn't show the UI works. Any change to `app/src/components` needs `drive.mjs`.
 
@@ -73,11 +75,11 @@ Everything goes to `app/.e2e-out/`, which is gitignored:
 
 | Path | What it holds |
 |---|---|
-| `verify/<journey>/journey.log` | One `ok` line per check, then `PASS` or `FAIL` |
+| `verify/<journey>/journey.log` | The commit that was built, one `ok` line per check, then `PASS` or `FAIL` |
 | `verify/<journey>/NN-<label>.png` | Full-page screenshot |
 | `verify/<journey>/NN-<label>.aria.txt` | Accessibility snapshot of the same state |
 | `verify/ics/`, `verify/plan/` | The files the browser actually downloaded |
-| `logs/prove.log` | Full `prove` output |
+| `logs/prove.log` | The commit that was built, then full `prove` output |
 | `canvas-deadlines.ics`, `deadlines.ics`, `deadlines.md` | What `prove` wrote |
 | `logs/app.log`, `logs/mock-canvas.log` | Server output. The `canvas` journey checks `app.log` for tokens |
 
@@ -86,7 +88,7 @@ A run replaces that journey's folder. Copy anything you need to keep across runs
 Proof standards:
 
 - Use the real user path. Don't write to `localStorage` or call a lib function to reach a state.
-- Capture the action and the result. Paste the `ok` lines into the PR, not just `PASS`.
+- Capture the action and the result. Paste the `sha` line and the `ok` lines into the PR, not just `PASS`. A `sha` line ending `plus uncommitted changes` doesn't prove that commit.
 - Check side effects as well as the screen: read the downloaded file, the stored state, the server log.
 - Mock only Canvas, which is the one external system, and only behind the app's real server routes.
 - A journey that can't run is a failure, with the reason. Never loosen a check to get a pass, and never report a path as verified through a different one.
@@ -114,5 +116,5 @@ A full check, start to finish:
 .claude/skills/verify-semester-autopilot/scripts/control.mjs prove
 .claude/skills/verify-semester-autopilot/scripts/drive.mjs all
 .claude/skills/verify-semester-autopilot/scripts/control.mjs cleanup
-ls app/.e2e-out/verify/*/journey.log app/.e2e-out/logs/prove.log
+ls -R app/.e2e-out/verify app/.e2e-out/logs/prove.log
 ```

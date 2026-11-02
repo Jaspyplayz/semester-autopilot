@@ -4,6 +4,7 @@
 // Each journey opens a new browser profile and reaches its feature through the UI.
 // Evidence goes to app/.e2e-out/verify/<journey>/. A run replaces that journey's folder.
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync, appendFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 
@@ -15,8 +16,6 @@ const FIXTURES = join(ROOT, "examples/sample-university");
 const SYLLABUSES = join(FIXTURES, "syllabuses");
 const TOKEN = "mock-token-not-a-secret";
 const SAMPLE_TODAY = "2026-10-05";
-
-const { chromium } = createRequire(join(APP, "package.json"))("playwright-core");
 
 function assert(ok, message) {
   if (!ok) throw new Error(message);
@@ -425,6 +424,7 @@ const journeys = {
 };
 
 async function launchBrowser() {
+  const { chromium } = createRequire(join(APP, "package.json"))("playwright-core");
   const path = process.env.CHROME_PATH;
   return chromium.launch(path ? { executablePath: path } : { channel: "chrome" });
 }
@@ -438,6 +438,7 @@ async function runJourney(name, browser, instance) {
     console.log(line);
     appendFileSync(log, `${line}\n`);
   };
+  say(instance.stamp);
 
   let shot = 0;
   let context;
@@ -489,6 +490,13 @@ if (!asked.length || asked.some((name) => !journeys[name])) {
 }
 if (!existsSync(RUN_FILE)) {
   console.error("Nothing is running. Run control.mjs launch, then control.mjs doctor.");
+  process.exit(1);
+}
+// Before any journey's folder is replaced, so a refusal keeps the last evidence.
+const doctor = spawnSync(process.execPath, [join(import.meta.dirname, "control.mjs"), "doctor"], { encoding: "utf8" });
+if (doctor.status !== 0) {
+  console.error(doctor.stdout.split("\n").filter((line) => line.startsWith("FAIL")).join("\n"));
+  console.error("Refusing to drive: doctor failed. Run control.mjs cleanup, then launch.");
   process.exit(1);
 }
 const instance = JSON.parse(readFileSync(RUN_FILE, "utf8"));
