@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Checks the step-flow model. Fails if a rule that held breaks, if a known bug
-# stops breaking (retire it, as with `it.fails` in the app), or if a broken copy
-# of the model gets past its rule.
+# Checks the step-flow model. It reads only the model, never the app. Fails if a
+# rule that held breaks, if a known bug stops breaking in the model (retire it,
+# as with `knownBug` in the app), or if a broken copy of the model gets past its
+# rule.
 set -euo pipefail
 
 TLA2TOOLS_VERSION=1.7.4
@@ -70,7 +71,7 @@ for rule in "${KNOWN_BUGS[@]}"; do
     echo "known bug  $rule still breaks"
   else
     cat "$work/out"
-    fail "$rule no longer breaks. If the app is fixed, move it to HOLDS and turn its it.fails test into it"
+    fail "$rule no longer breaks in the model. If the app is fixed too, move it to HOLDS and turn its knownBug test into it"
   fi
 done
 

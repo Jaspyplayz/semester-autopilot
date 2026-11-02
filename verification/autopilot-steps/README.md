@@ -48,11 +48,13 @@ Needs bash, curl and Java 11 or later. It downloads the pinned `tla2tools.jar` a
 verification/autopilot-steps/check.sh
 ```
 
-It takes about 15 seconds, and CI runs it in `.github/workflows/verification.yml`. It goes red in three cases:
+It takes about 15 seconds, and CI runs it in `.github/workflows/verification.yml`. It only reads `AutopilotSteps.tla`, so it guards the model, not the app: no change to the app can turn it red. It goes red in three cases:
 
-- A rule that holds breaks.
+- A rule that holds breaks in the model.
 - A broken copy of the model gets past its rule. Each rule has at least one such copy, listed in `MUTANTS`.
-- A known bug stops breaking. When you fix one, move it to `HOLDS` in `check.sh`, and change its `it.fails` test to `it`.
+- A known bug stops breaking in the model. When you fix one in the app, change the model to match, move the rule to `HOLDS` in `check.sh`, and change its `knownBug` test to `it`.
+
+Nothing checks the model against the app automatically. That's down to review, using the table above, and the pinned tests, which go red when a bug is fixed or its path through the app changes.
 
 To see a path or redraw the chart, run pstack's `/statechart` on `AutopilotSteps.tla` with `view.mjs`. Use `AutopilotSteps.cfg` for the bug paths and `Flow.cfg` for the chart below.
 

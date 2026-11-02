@@ -1,7 +1,8 @@
 name: Verification
 
-# No path filters and no job-level `if`, like ci.yml: the model has to be
-# rechecked on every PR, because the code it describes can change anywhere.
+# No path filters and no job-level `if`, like ci.yml: a filtered workflow never
+# reports. check.sh only reads the model, so this guards the model, not the app.
+# Keeping the two in sync is down to review and the pinned tests.
 on:
   pull_request:
   push:
