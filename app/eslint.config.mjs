@@ -12,7 +12,7 @@ const eslintConfig = defineConfig([
     // Everything but route handlers, *.server files and tests. Allowing only those
     // also stops a plain module carrying server code to a client component.
     name: "server-boundary",
-    files: ["src/**/*.{ts,tsx}"],
+    files: ["src/**/*.{ts,tsx,js,jsx}"],
     ignores: ["src/app/api/**/route.ts", "src/**/*.server.{ts,tsx}", "src/**/*.test.ts"],
     rules: {
       "no-restricted-imports": [
