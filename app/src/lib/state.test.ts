@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { confirmDraft, defaultState, reviveState, startDraft, visibleRows } from "./state";
-import type { Deadline, Extraction } from "./types";
+import { applyCanvasImport, confirmDraft, defaultState, reviveState, startDraft, visibleRows } from "./state";
+import type { Deadline, Extraction, SyllabusSource } from "./types";
 
 function row(over: Partial<Deadline>): Deadline {
   return { id: over.what ?? "x", course: "ABC 100", what: "Thing", worth: "10%", covers: "", when: "TBA", source: "syllabus", ...over };
@@ -76,5 +76,43 @@ describe("confirmDraft", () => {
   it("does nothing without a draft", () => {
     const s = defaultState();
     expect(confirmDraft(s, TODAY)).toBe(s);
+  });
+});
+
+describe("applyCanvasImport", () => {
+  const canvas = (id: string): SyllabusSource => ({
+    id,
+    name: `ABC 100 · ${id}`,
+    kind: "canvas",
+    text: "## Marking\n| Item | Weight | Due |\n| Midterm | 25% | Oct 15, 2026 |",
+    course: { code: "ABC 100", name: "Thing" },
+  });
+  const pasted: SyllabusSource = { id: "p", name: "Pasted text 1", kind: "paste", text: "XYZ 200\nMidterm 25% Oct 20, 2026" };
+
+  it("replaces earlier Canvas sources, keeps uploads, and opens the confirm step", () => {
+    const start = { ...defaultState(), sources: [canvas("old"), pasted] };
+    const next = applyCanvasImport(start, { sources: [canvas("new")], notes: ["A note."], term: null });
+    expect(next.sources.map((s) => s.id)).toEqual(["p", "new"]);
+    expect(next.step).toBe("confirm");
+    expect(next.draft?.method).toBe("rules");
+    expect(next.draft?.courses.map((c) => c.code).sort()).toEqual(["ABC 100", "XYZ 200"]);
+    expect(next.draft?.warnings).toContain("A note.");
+  });
+
+  it("adopts the course site's term when there is one", () => {
+    const next = applyCanvasImport(defaultState(), { sources: [canvas("a")], notes: [], term: "2026 Fall" });
+    expect(next.term).toBe("2026 Fall");
+    expect(applyCanvasImport(defaultState(), { sources: [canvas("a")], notes: [], term: null }).term).toBe("Fall 2026");
+  });
+
+  it("changes nothing when nothing came back, so a failed retry keeps the last import", () => {
+    const start = { ...defaultState(), sources: [canvas("old")] };
+    expect(applyCanvasImport(start, { sources: [], notes: ["nothing"], term: "2027 Winter" })).toBe(start);
+  });
+
+  it("keeps the base URL through a save and reload, and never a token", () => {
+    const s = { ...defaultState(), canvasBaseUrl: "https://canvas.school.edu" };
+    expect(reviveState(JSON.parse(JSON.stringify(s)))?.canvasBaseUrl).toBe("https://canvas.school.edu");
+    expect(JSON.stringify(defaultState()).toLowerCase()).not.toContain("token");
   });
 });

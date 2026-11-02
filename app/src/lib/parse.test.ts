@@ -275,3 +275,47 @@ Late work loses 10% per day.`;
     expect(p.warnings[0]).toMatch(/no course code/);
   });
 });
+
+describe("a course supplied by the course site", () => {
+  const text = "Marking scheme\nMidterm 25% Oct 16, 2026";
+  const course = { code: "CSC 207H1", name: "Software Design" };
+
+  it("wins over anything in the text, with no warning", () => {
+    const p = parseSyllabus(`PHL 245 is a prerequisite.\n${text}`, { term: "Fall 2026", sourceName: "x.pdf", course });
+    expect(p.course).toMatchObject(course);
+    expect(p.rows[0].course).toBe("CSC 207H1");
+    expect(p.warnings).toEqual([]);
+  });
+
+  it("goes through parseSyllabuses from the source", () => {
+    const ex = parseSyllabuses([{ name: "x.pdf", text, course }], { term: "Fall 2026" });
+    expect(ex.courses).toEqual([expect.objectContaining(course)]);
+  });
+
+  it("doesn't warn about a page with no marks when another source for the course has them", () => {
+    const ex = parseSyllabuses(
+      [
+        { name: "page", text: "Welcome to the course, read the outline.", course },
+        { name: "outline.pdf", text, course },
+      ],
+      { term: "Fall 2026" },
+    );
+    expect(ex.rows).toHaveLength(1);
+    expect(ex.warnings.join(" ")).not.toMatch(/no assessments/);
+  });
+
+  it("still warns when no source for the course has marks", () => {
+    const ex = parseSyllabuses([{ name: "page", text: "Welcome to the course.", course }], { term: "Fall 2026" });
+    expect(ex.warnings.join(" ")).toMatch(/no assessments/);
+  });
+});
+
+describe("a course's page and file from the course site", () => {
+  it("aren't reported as added twice", () => {
+    const course = { code: "CSC 207H1", name: "" };
+    const text = "Marking scheme\nMidterm 25% Oct 16, 2026";
+    const ex = parseSyllabuses([{ name: "a", text, course }, { name: "b", text, course }], { term: "Fall 2026" });
+    expect(ex.warnings).toEqual([]);
+    expect(ex.rows).toHaveLength(1);
+  });
+});

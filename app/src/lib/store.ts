@@ -1,6 +1,7 @@
 // Browser state: an external store for useSyncExternalStore, saved through a
 // StateRepository. Syllabus text and deadlines stay on this device.
 
+import { clearCanvasToken } from "./canvas-session";
 import { defaultState, reviveState, type AppState, type StateRepository } from "./state";
 
 const KEY = "semester-autopilot.v1";
@@ -63,6 +64,7 @@ export function update(change: (state: AppState) => AppState): void {
 
 export function resetAll(): void {
   repository.clear();
+  clearCanvasToken();
   current = defaultState();
   saveFailed = false;
   emit();

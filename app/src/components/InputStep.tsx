@@ -6,11 +6,11 @@ import { parseSyllabuses } from "@/lib/parse";
 import { startDraft, type AppState } from "@/lib/state";
 import { update } from "@/lib/store";
 import type { Extraction, SyllabusSource } from "@/lib/types";
-import { Button, Card } from "./ui";
+import { CanvasConnect } from "./CanvasConnect";
+import { Button, Card, INPUT } from "./ui";
 
 const SAMPLES = ["BIO110", "CS150", "HIS201"];
 const SAMPLE_TODAY = "2026-10-05";
-const INPUT = "w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm";
 
 let nextId = 0;
 const newId = (name: string) => `${Date.now()}-${nextId++}-${name}`;
@@ -42,6 +42,8 @@ export function InputStep({ state, today }: { state: AppState; today: string }) 
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [llmEnabled, setLlmEnabled] = useState(false);
+  // Open from the start if the student has already used it.
+  const [fallbackOpen] = useState(() => state.sources.some((s) => s.kind !== "canvas"));
   const timeZones = useMemo(() => Intl.supportedValuesOf("timeZone"), []);
 
   useEffect(() => {
@@ -126,8 +128,11 @@ export function InputStep({ state, today }: { state: AppState; today: string }) 
 
   return (
     <>
-      <Card title="Your syllabuses">
-        <div className="flex flex-wrap items-center gap-3">
+      <CanvasConnect state={state} />
+
+      <details open={fallbackOpen} className="mb-5 rounded-lg border border-stone-200 bg-white p-4 sm:p-5">
+        <summary className="cursor-pointer font-semibold">No token? Upload or paste a syllabus instead</summary>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <label className="cursor-pointer rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-medium hover:bg-stone-100">
             Upload files
             <input
@@ -158,17 +163,11 @@ export function InputStep({ state, today }: { state: AppState; today: string }) 
         <Button className="mt-2" onClick={addPasted} disabled={!pasted.trim()}>
           Add pasted text
         </Button>
+      </details>
 
-        {errors.length > 0 && (
-          <ul role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-            {errors.map((e) => (
-              <li key={e}>{e}</li>
-            ))}
-          </ul>
-        )}
-
-        {state.sources.length > 0 && (
-          <ul className="mt-4 divide-y divide-stone-100 border-t border-stone-100 text-sm">
+      {state.sources.length > 0 && (
+        <Card title="Your syllabuses">
+          <ul className="divide-y divide-stone-100 text-sm">
             {state.sources.map((s) => (
               <li key={s.id} className="flex items-center justify-between gap-3 py-2">
                 <span className="truncate">{s.name}</span>
@@ -183,8 +182,8 @@ export function InputStep({ state, today }: { state: AppState; today: string }) 
               </li>
             ))}
           </ul>
-        )}
-      </Card>
+        </Card>
+      )}
 
       <Card title="Term and time zone">
         <div className="grid gap-4 sm:grid-cols-3">
@@ -260,6 +259,14 @@ export function InputStep({ state, today }: { state: AppState; today: string }) 
           </p>
         )}
       </Card>
+
+      {errors.length > 0 && (
+        <ul role="alert" className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          {errors.map((e) => (
+            <li key={e}>{e}</li>
+          ))}
+        </ul>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="primary" onClick={readWithRules} disabled={!canRead}>

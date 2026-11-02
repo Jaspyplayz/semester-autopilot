@@ -9,6 +9,7 @@ import {
   parseWhen,
   termWeek,
   yearForMonth,
+  inferTerm,
 } from "./dates";
 
 const FALL = parseTerm("Fall 2026", 2000);
@@ -106,5 +107,18 @@ describe("parseWhen and formatWhen", () => {
   it("returns null for text it can't read and for impossible dates", () => {
     expect(parseWhen("sometime soon", FALL)).toBeNull();
     expect(parseWhen("Feb 30", FALL)).toBeNull();
+  });
+});
+
+describe("inferTerm", () => {
+  it("uses the term when every selected course shares one with a season and year", () => {
+    expect(inferTerm(["2026 Fall", "2026 Fall"])).toBe("2026 Fall");
+  });
+
+  it("gives no answer for mixed or unusable terms", () => {
+    expect(inferTerm(["2026 Fall", "2027 Winter"])).toBeNull();
+    expect(inferTerm(["Default Term"])).toBeNull();
+    expect(inferTerm(["Fall"])).toBeNull();
+    expect(inferTerm([])).toBeNull();
   });
 });
