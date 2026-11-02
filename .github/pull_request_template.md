@@ -10,6 +10,10 @@
 
 <!-- Link or paste output from the latest commit: screenshots, test output, or `npm run prove` (runs from app/ against a built, running server, see app/README.md). -->
 
+## Before/after screenshot (UI changes)
+
+<!-- Before and after images from the latest commit. No UI change: "n/a". -->
+
 ## Review
 
 Round:
@@ -17,3 +21,5 @@ Round:
 - Spec: PASS/FAIL
 - Tests: PASS/FAIL
 - Break-it: PASS/FAIL
+
+Principles Used: principle → the choice it changed
