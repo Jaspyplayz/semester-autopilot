@@ -27,6 +27,8 @@ Full steps, including Power mode, are in [SETUP.md](SETUP.md). Want to try it fi
 - `references/`: templates for the deadline table, study plans, the weekly schedule and the folder layout, plus notes for each course site.
 - `examples/sample-university/`: a made-up school with three syllabuses and example output.
 - `app/`: the web app (Next.js).
+- `docs/merge-safety.md`: how PRs get merged here.
+- `docs/study-methods.md`: evidence note on study methods for the planner and Coach.
 
 ## Web app
 [`app/`](app/) is an early web version of the first two steps: connect Quercus or any Canvas site with an access token (or upload your syllabuses instead), confirm the deadline table, then download `deadlines.md` and an `.ics` file. It needs no account or Anthropic API key. Your syllabuses and deadlines stay in your browser, and your token stays in that tab, passing through the app's server only to reach your course site. Study plans are still skill-only. To run or deploy it, see [`app/README.md`](app/README.md).
