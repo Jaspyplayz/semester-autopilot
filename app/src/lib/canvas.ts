@@ -5,7 +5,7 @@
 // itself. Error messages are fixed strings, so they can't carry a token.
 
 import { z } from "zod";
-import { htmlToText, linkedFiles } from "./html-text";
+import { htmlToText, linkedFiles, type LinkedFile } from "./html-text";
 import { findCourseCode } from "./parse";
 import type { CourseInfo, SyllabusSource } from "./types";
 
@@ -72,6 +72,7 @@ const MIN_PAGE_CHARS = 40;
 // A short page with no marks on it is probably "the syllabus is here", plus a link.
 const POINTER_PAGE_CHARS = 500;
 const SYLLABUS_NAME_RE = /syllab|outline|course[ _-]?info/i;
+const MARKS_RE = /\d\s?%/;
 
 const CourseSchema = z.object({
   id: z.number(),
@@ -94,6 +95,8 @@ const FileSchema = z.object({
   updated_at: z.string().nullish(),
 });
 type RawFile = z.infer<typeof FileSchema>;
+
+const PageSchema = z.object({ body: z.string().nullish() });
 
 const ModuleSchema = z.object({
   name: z.string().nullish(),
@@ -207,16 +210,13 @@ function fileKind(f: RawFile): FileKind {
   return "other";
 }
 
-async function findSyllabusFiles(
-  conn: CanvasConnection,
-  courseId: string,
-  body: string,
-  pageIsPointer: boolean,
-  warn: (note: string) => void,
-): Promise<RawFile[]> {
-  // A listing being refused is normal (many courses hide Files from students),
-  // so it isn't worth a note. Anything else might mean a syllabus was missed.
-  async function optional<T>(load: () => Promise<T>, empty: T): Promise<T> {
+type Optional = <T>(load: () => Promise<T>, empty: T) => Promise<T>;
+
+// A listing being refused is normal (many courses hide Files from students), and
+// a course may have no front page, so neither is worth a note. Anything else
+// might mean a syllabus was missed.
+function optionalLoads(warn: (note: string) => void): Optional {
+  return async (load, empty) => {
     try {
       return await load();
     } catch (err) {
@@ -226,11 +226,34 @@ async function findSyllabusFiles(
       }
       return empty;
     }
-  }
+  };
+}
+
+interface CoursePage {
+  html: string;
+  isPointer: boolean;
+}
+
+const isPointerPage = (text: string) => text.length < POINTER_PAGE_CHARS && !MARKS_RE.test(text);
+
+async function findSyllabusFiles(
+  conn: CanvasConnection,
+  courseId: string,
+  pages: CoursePage[],
+  optional: Optional,
+): Promise<RawFile[]> {
   const fileById = (id: string) => optional<RawFile | null>(() => getJson(conn, `/api/v1/files/${id}`, FileSchema), null);
 
-  const links = linkedFiles(body).slice(0, MAX_LINKED_LOOKUPS);
-  const linked = await Promise.all(links.map(async (l) => ({ label: l.label, file: await fileById(l.id) })));
+  const links = new Map<string, LinkedFile & { onPointerPage: boolean }>();
+  for (const page of pages) {
+    for (const l of linkedFiles(page.html)) {
+      if (!links.has(l.id)) links.set(l.id, { ...l, onPointerPage: page.isPointer });
+    }
+  }
+  // A home page can link to every week's slides, so likely syllabus links go first.
+  const nameScore = (label: string) => Number(SYLLABUS_NAME_RE.test(label));
+  const lookups = [...links.values()].sort((a, b) => nameScore(b.label) - nameScore(a.label)).slice(0, MAX_LINKED_LOOKUPS);
+  const linked = await Promise.all(lookups.map(async (l) => ({ ...l, file: await fileById(l.id) })));
   const named = linked.filter((l) => l.file && (SYLLABUS_NAME_RE.test(l.label) || SYLLABUS_NAME_RE.test(fileName(l.file))));
   const found: RawFile[] = named.map((l) => l.file as RawFile);
 
@@ -258,7 +281,8 @@ async function findSyllabusFiles(
   }
 
   // A short page whose only job is to point at a file, whatever that file is called.
-  if (!found.length && pageIsPointer && linked[0]?.file) found.push(linked[0].file);
+  const pointedAt = linked.find((l) => l.onPointerPage && l.file)?.file;
+  if (!found.length && pointedAt) found.push(pointedAt);
 
   const seen = new Set<number>();
   return found.filter((f) => !seen.has(f.id) && seen.add(f.id));
@@ -312,8 +336,18 @@ export async function fetchCourseSyllabus(
   const pageText = htmlToText(body);
   if (pageText.length >= MIN_PAGE_CHARS) add("syllabus page", pageText);
 
-  const pageIsPointer = pageText.length < POINTER_PAGE_CHARS && !/\d\s?%/.test(pageText);
-  const files = await findSyllabusFiles(conn, course.id, body, pageIsPointer, note);
+  const optional = optionalLoads(note);
+  const pages: CoursePage[] = [{ html: body, isPointer: isPointerPage(pageText) }];
+  // Many courses leave the Syllabus tab empty and put the syllabus on the course home page.
+  let homeText = "";
+  if (pages[0].isPointer) {
+    const home = await optional(() => getJson(conn, `/api/v1/courses/${course.id}/front_page`, PageSchema), null);
+    const html = home?.body ?? "";
+    homeText = htmlToText(html);
+    pages.push({ html, isPointer: isPointerPage(homeText) });
+  }
+
+  const files = await findSyllabusFiles(conn, course.id, pages, optional);
   const readable: Array<{ file: RawFile; kind: FileKind }> = [];
   for (const file of files) {
     const kind = fileKind(file);
@@ -324,6 +358,7 @@ export async function fetchCourseSyllabus(
     else if ((file.size ?? 0) > MAX_FILE_BYTES) note(`${name} is too big to read here`);
     else readable.push({ file, kind });
   }
+  const sourcesBeforeFiles = sources.length;
   const newest = readable
     .sort((a, b) => (b.file.updated_at ?? "").localeCompare(a.file.updated_at ?? ""))
     .slice(0, MAX_FILES_PER_COURSE);
@@ -332,6 +367,10 @@ export async function fetchCourseSyllabus(
     if ("text" in result) add(fileName(file), result.text);
     else note(result.problem);
   }
+
+  // A home page is usually a welcome message, so its text only counts if it has
+  // marks on it and no file did the job.
+  if (MARKS_RE.test(homeText) && sources.length === sourcesBeforeFiles) add("home page", homeText);
 
   if (!sources.length) note("no syllabus found on the course site. Upload or paste it instead");
   return { course, sources, notes };

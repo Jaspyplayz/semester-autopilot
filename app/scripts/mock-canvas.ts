@@ -21,6 +21,7 @@ export interface MockCourse {
   code: string;
   name: string;
   syllabusBody?: string;
+  frontPageBody?: string;
   files: string[];
 }
 
@@ -91,6 +92,12 @@ export async function startMockCanvas(courses: MockCourse[], port = 0): Promise<
     if (one) {
       const c = courses.find((x) => x.id === Number(one[1]));
       return c ? send(200, { ...courseJson(c), syllabus_body: c.syllabusBody ?? null }) : send(404, {});
+    }
+    const front = url.pathname.match(/^\/api\/v1\/courses\/(\d+)\/front_page$/);
+    if (front) {
+      const c = courses.find((x) => x.id === Number(front[1]));
+      if (c?.frontPageBody === undefined) return send(404, { message: "No front page has been set" });
+      return send(200, { url: "home", title: "Home", body: c.frontPageBody });
     }
     const list = url.pathname.match(/^\/api\/v1\/courses\/(\d+)\/files$/);
     if (list) {
